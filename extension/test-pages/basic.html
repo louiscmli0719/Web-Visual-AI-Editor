@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Visual AI Editor Basic Test Page</title>
+    <style>
+      :root {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #172033;
+        background: #f4f7fb;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      main {
+        display: grid;
+        gap: 24px;
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+
+      section {
+        display: grid;
+        gap: 16px;
+        border: 1px solid #dbe4f0;
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 24px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .actions,
+      .cards {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      button,
+      input {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font: inherit;
+        padding: 10px 12px;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .primary {
+        border-color: #006be6;
+        background: #006be6;
+        color: #ffffff;
+      }
+
+      .card {
+        flex: 1 1 220px;
+        display: grid;
+        gap: 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 16px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 10px;
+        text-align: left;
+      }
+
+      .style-targets {
+        display: grid;
+        gap: 16px;
+      }
+
+      .style-button {
+        border: 2px solid #0f172a;
+        border-radius: 6px;
+        background: #0f172a;
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 600;
+        padding: 12px 20px;
+      }
+
+      .style-card {
+        border: 1px solid #d4d4d8;
+        border-radius: 10px;
+        padding: 18px 22px;
+        background: #f5f5f4;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+      }
+
+      .style-heading {
+        color: #1e293b;
+        font-size: 22px;
+        font-weight: 500;
+        line-height: 1.3;
+      }
+
+      .style-spacing-block {
+        background: #fde68a;
+        border-radius: 4px;
+        padding: 12px 16px;
+        margin-top: 4px;
+        margin-bottom: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1 data-testid="hero-title">项目验收页面</h1>
+        <p>这个页面用于验证插件选择元素、添加评论、定位记录、导出 JSON 和复制 Prompt 的 V0.1 闭环，以及 V0.2 样式预览闭环。</p>
+        <div class="actions">
+          <button class="primary" id="save-button">保存修改</button>
+          <button data-testid="cancel-button">取消</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>样式编辑器验收目标</h2>
+        <p>用于 V0.2 样式预览、重置、保存样式记录的核心样本元素。</p>
+        <div class="style-targets">
+          <button class="style-button" id="style-primary-button" data-testid="style-primary-button">主要按钮</button>
+          <article class="style-card" id="style-card" data-testid="style-card">
+            <h3 class="style-heading">卡片标题</h3>
+            <p>修改背景色、圆角和阴影后，应该在不刷新页面时即时看到差异。</p>
+          </article>
+          <div class="style-spacing-block" id="style-spacing-block" data-testid="style-spacing-block">
+            内外边距演示块
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>表单区域</h2>
+        <label>
+          页面名称
+          <input aria-label="页面名称" value="Visual Editor Demo" />
+        </label>
+      </section>
+
+      <section>
+        <h2>卡片列表</h2>
+        <div class="cards">
+          <article class="card">
+            <strong>评论记录</strong>
+            <p>验证文本块和卡片结构能否被正确选择。</p>
+          </article>
+          <article class="card">
+            <strong>JSON 导出</strong>
+            <p>验证相似元素的 selector 和定位表现。</p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>表格区域</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>字段</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>selector</td>
+              <td>待验证</td>
+            </tr>
+            <tr>
+              <td>AI Prompt</td>
+              <td>待验证</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>
