@@ -46,7 +46,8 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       top: 16px;
       right: 16px;
       z-index: 2147483647;
-      display: grid;
+      display: flex;
+      flex-direction: column;
       max-height: calc(100dvh - 32px);
       width: 360px;
       border: 1px solid rgba(15, 23, 42, 0.12);
@@ -59,6 +60,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     }
 
     .wvaie-header {
+      flex: none;
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
@@ -89,7 +91,10 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     }
 
     .wvaie-scroll {
-      overflow: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
 
     .wvaie-section h2 {

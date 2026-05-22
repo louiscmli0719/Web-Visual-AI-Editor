@@ -15,7 +15,7 @@ V0.1 使用 Chrome Extension Manifest V3 实现一个无需后端服务的本地
 当前阶段：
 
 1. V0.1 已完成代码实现，并通过用户手动验收反馈。
-2. V0.2 进入样式编辑器准备阶段，将新增 computed style 读取、临时预览和样式差异导出。
+2. V0.2 样式编辑器已完成代码实现，已通过 `npm run verify`（单测 22/22、TypeScript、Vite build），等待 Chrome 手动加载复核。
 
 ## 2. 推荐技术栈
 
@@ -45,13 +45,18 @@ extension/
     content/dom-inspector.ts
     content/selector.ts
     content/session-store.ts
-    content/style-inspector.ts       # V0.2 planned
-    content/style-preview.ts         # V0.2 planned
+    content/style-inspector.ts
+    content/style-preview.ts
     overlay/overlay-root.ts
     overlay/highlight-layer.ts
     panel/panel-root.tsx
     panel/App.tsx
     panel/components/
+      ElementInfoPanel.tsx
+      StyleEditorPanel.tsx
+      CommentEditor.tsx
+      RecordList.tsx
+      ImportExportBar.tsx
     shared/
   test-pages/basic.html
 ```
@@ -76,9 +81,11 @@ npm run verify
 
 1. `manifest.json` 仍放在 `extension/` 根目录，构建时复制到 `dist/manifest.json`。
 2. `background/service-worker.ts` 已接入插件图标点击和 content script 注入。
-3. `content/index.ts` 已提供编辑模式启停、hover、点击选中、评论保存、记录定位、JSON 导入导出和 Prompt 复制。
-4. React Panel 已接入选中元素信息、评论输入、记录列表、导入导出和复制 Prompt 操作。
-5. `extension/test-pages/basic.html` 用于本地手动验收。
+3. `content/index.ts` 已提供编辑模式启停、hover、点击选中、评论保存、记录定位、JSON 导入导出、Prompt 复制、样式快照、临时预览和样式差异保存。
+4. `content/style-inspector.ts` 暴露 `STYLE_PROPERTY_DEFINITIONS` 与 `readStyleSnapshot(element)`，按白名单顺序返回 computed style。
+5. `content/style-preview.ts` 暴露 `createStylePreviewManager()`，使用 `WeakMap` 保存元素原始 inline style，支持 `apply` / `reset` / `resetAll`。
+6. React Panel 已接入选中元素信息、样式编辑、评论输入、记录列表、导入导出和复制 Prompt 操作。
+7. `extension/test-pages/basic.html` 包含 V0.1 元素以及 V0.2 主按钮、卡片、标题、间距样本，用于本地手动验收。
 
 ## 3. Manifest V3 权限
 
@@ -285,20 +292,21 @@ type RuntimeState = {
 | 页面 CSP 限制 | 只注入 extension 打包资源，不加载远程脚本 |
 | 页面点击被插件拦截 | 退出编辑模式时移除所有监听 |
 
-## 11. V0.2 样式编辑器架构规划
+## 11. V0.2 样式编辑器架构
 
 V0.2 延续 V0.1 的 Background / Content Script / Panel / Overlay 分层，不新增后端服务。
 
 ### 11.1 Style Inspector
 
-计划文件：`extension/src/content/style-inspector.ts`
+文件：`extension/src/content/style-inspector.ts`
 
 职责：
 
 1. 接收当前选中的 `Element`。
-2. 判断是否为 `HTMLElement`。
+2. 判断是否为 `HTMLElement`，否则返回空数组。
 3. 使用 `getComputedStyle(element)` 读取白名单样式。
-4. 返回可序列化的 `StylePropertySnapshot[]`。
+4. 返回可序列化的 `StylePropertySnapshot[]`，顺序由 `STYLE_PROPERTY_DEFINITIONS` 决定。
+5. 同时导出 `FONT_WEIGHT_OPTIONS`，供 Panel 字重 select 控件复用。
 
 不负责：
 
@@ -308,14 +316,15 @@ V0.2 延续 V0.1 的 Background / Content Script / Panel / Overlay 分层，不�
 
 ### 11.2 Style Preview Manager
 
-计划文件：`extension/src/content/style-preview.ts`
+文件：`extension/src/content/style-preview.ts`
 
 职责：
 
 1. 对支持的 `HTMLElement` 写入临时 inline style。
-2. 首次修改时记录原始 inline style 值。
-3. 支持重置当前元素预览。
-4. 支持退出编辑模式时统一清理全部预览。
+2. 首次修改时记录原始 inline style 值，存入 `WeakMap`。
+3. 单元素 `reset()` 恢复所有被记录的属性，并清除原始值缓存。
+4. `resetAll()` 在退出编辑模式或导入 JSON 时统一清理全部预览。
+5. 非 `HTMLElement` 的 `apply()` 返回 `{ ok: false, reason }`，由 Panel 显示。
 
 不负责：
 
@@ -325,15 +334,15 @@ V0.2 延续 V0.1 的 Background / Content Script / Panel / Overlay 分层，不�
 
 ### 11.3 Panel Style Editor
 
-计划文件：`extension/src/panel/components/StyleEditorPanel.tsx`
+文件：`extension/src/panel/components/StyleEditorPanel.tsx`
 
 职责：
 
-1. 展示 V0.2 白名单样式。
-2. 为颜色、数字、字重和阴影提供基础控件。
-3. 触发样式预览。
-4. 触发当前元素预览重置。
-5. 把样式 draft 交给 Content Script 保存为记录。
+1. 按颜色 / 排版 / 内边距 / 外边距 / 边框 / 阴影分组展示 V0.2 白名单样式。
+2. 颜色支持 `<input type="color">` + 文本输入，数值自动补 `px`，字重为 select，阴影为纯文本。
+3. 通过 `onStyleDraftChange(property, value)` 把 draft 写回 Content Script，由 Preview Manager 应用。
+4. 通过 `onResetStylePreview` 触发当前元素重置。
+5. 不直接持久化 draft 到 session，保存动作由 `CommentEditor` 触发。
 
 ### 11.4 数据流
 
@@ -343,13 +352,14 @@ V0.2 延续 V0.1 的 Background / Content Script / Panel / Overlay 分层，不�
 4. 用户修改样式值。
 5. Content Script 通过 Preview Manager 写入临时 inline style。
 6. 用户保存记录。
-7. Session Store 生成包含 `styleChanges` 的 `EditRecord`。
+7. Session Store 把当前 draft 与原值差异化为 `StyleChange[]` 写入 `EditRecord.styleChanges`。
 8. JSON / Prompt 导出包含样式差异。
 
 ### 11.5 清理策略
 
-V0.2 必须保证：
+V0.2 已实现：
 
-1. 点击“重置当前预览”时，恢复当前元素被插件改过的 inline style。
-2. 退出编辑模式时，调用 `resetAll()` 清除全部预览。
-3. 导入 JSON 不自动应用样式到页面，避免意外污染当前网页。
+1. 点击"重置当前预览"时，恢复当前元素被插件改过的 inline style。
+2. 切换选中元素或重新选中同一元素时，`styleDraft` 重置；上一个元素的预览保留在页面，直到用户重置或退出。
+3. 退出编辑模式时，调用 `resetAll()` 清除全部预览。
+4. 导入 JSON 不自动应用样式到页面，避免意外污染当前网页。

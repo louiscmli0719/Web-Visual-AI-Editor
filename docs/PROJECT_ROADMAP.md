@@ -25,9 +25,10 @@ Web Visual AI Editor 是一个面向 AI 编程和前端页面改稿场景的浏�
 当前阶段状态：
 
 1. V0.1 最小闭环已完成代码实现，并已通过用户手动验收反馈。
-2. V0.2 样式编辑器已进入规格和实现准备阶段。
+2. V0.2 样式编辑器代码实现已完成，并通过 `npm run verify`，等待 Chrome 手动验收。
 3. V0.2 详细产品规格见 `docs/V0.2_STYLE_EDITOR_SPEC.md`。
-4. V0.2 可执行实现计划见 `docs/superpowers/plans/2026-05-22-v0.2-style-editor.md`。
+4. V0.2 实现计划已执行完毕：`docs/superpowers/plans/2026-05-22-v0.2-style-editor.md`。
+5. V0.3 评论增强已完成产品规格 `docs/V0.3_COMMENT_ENHANCEMENT_SPEC.md` 与可执行实施计划 `docs/superpowers/plans/2026-05-22-v0.3-comment-enhancement.md`，等待用户审批后开始代码实现。
 
 ## 2. 目标用户
 

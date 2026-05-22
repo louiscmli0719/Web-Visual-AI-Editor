@@ -11,8 +11,9 @@ V0.1 的目标不是直接改网页样式，而是解决“我无法准确描述
 当前状态：
 
 1. V0.1 已完成代码实现，并已通过用户手动验收反馈。
-2. V0.2 已进入样式编辑器阶段，详细规格见 `docs/V0.2_STYLE_EDITOR_SPEC.md`。
-3. V0.2 不改写本文档的 V0.1 MVP 范围，而是在独立规格中定义增量能力。
+2. V0.2 样式编辑器已完成代码实现，并通过 `npm run verify`，等待 Chrome 手动验收，详细规格见 `docs/V0.2_STYLE_EDITOR_SPEC.md`。
+3. V0.3 评论增强已完成产品规格 `docs/V0.3_COMMENT_ENHANCEMENT_SPEC.md` 与可执行实施计划 `docs/superpowers/plans/2026-05-22-v0.3-comment-enhancement.md`，等待用户审批。
+4. V0.2 / V0.3 不改写本文档的 V0.1 MVP 范围，而是在独立规格中定义增量能力。
 
 V0.1 要跑通的最小闭环：
 

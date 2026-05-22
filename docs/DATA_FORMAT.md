@@ -175,7 +175,7 @@ type StyleChange = {
 ```json
 {
   "app": "Web Visual AI Editor",
-  "version": "0.1",
+  "version": "0.2",
   "exportedAt": "2026-05-22T10:00:00.000Z",
   "page": {
     "url": "https://example.com/dashboard",
@@ -205,7 +205,22 @@ type StyleChange = {
           "width": 96,
           "height": 40
         }
-      }
+      },
+      "styleChanges": [
+        {
+          "property": "backgroundColor",
+          "label": "背景色",
+          "oldValue": "rgb(255, 255, 255)",
+          "newValue": "#006be6"
+        },
+        {
+          "property": "borderRadius",
+          "label": "圆角",
+          "oldValue": "0px",
+          "newValue": "12px",
+          "unit": "px"
+        }
+      ]
     }
   ]
 }
@@ -217,17 +232,18 @@ type StyleChange = {
 
 1. 根对象必须是 object。
 2. `app` 必须等于 `Web Visual AI Editor`。
-3. `version` 必须是当前支持版本。
+3. `version` 必须是 `0.1` 或 `0.2`。
 4. `records` 必须是数组。
 5. 每条记录必须包含 `id`、`comment`、`element.selector`。
 6. 每条记录的 `element.rect` 必须包含 `x`、`y`、`width`、`height`。
 
 V0.2 兼容规则：
 
-1. 导入 `version: "0.1"` 时，允许记录没有 `styleChanges`。
+1. 导入 `version: "0.1"` 时，记录被规范化为 V0.2，`styleChanges` 默认补 `[]`。
 2. 导入 `version: "0.2"` 时，`styleChanges` 可以不存在或为空数组。
-3. 如果存在 `styleChanges`，每条变化必须包含 `property`、`oldValue`、`newValue`。
-4. 不支持的 `property` 应保留在 JSON 中，但 Panel 可以显示为只读未知属性。
+3. 如果存在 `styleChanges`，每条变化必须包含 `property`、`label`、`oldValue`、`newValue`。
+4. 不被识别的样式条目会被忽略，记录仍保留。
+5. 导入后插件不会自动把 `styleChanges` 重新应用到页面，避免污染当前网页。
 
 导入失败输出：
 
@@ -265,23 +281,21 @@ V0.2 兼容规则：
 - 元素文本：{{element.text}}
 - 元素位置：x={{element.rect.x}}, y={{element.rect.y}}, width={{element.rect.width}}, height={{element.rect.height}}
 - 用户评论 / 修改意图：{{comment}}
+{{#hasStyleChanges}}
+- 样式修改：
+  - {{property}}: {{oldValue}} -> {{newValue}}
+{{/hasStyleChanges}}
 
-请找到对应元素或最接近的组件实现，并按评论意图修改。
+请找到对应元素或最接近的组件实现，并按评论意图与样式差异修改。
 {{/records}}
 
 输出要求：
 1. 说明你修改了哪些文件。
-2. 说明每条评论对应的实现方式。
+2. 说明每条评论和样式修改对应的实现方式。
 3. 如果 selector 无法直接匹配，请根据文本、位置和上下文寻找最接近元素。
-4. 不要删除无关功能。
-5. 修改后请运行必要的构建、类型检查或测试。
-```
-
-V0.2 样式差异输出追加格式：
-
-```text
-- 样式修改：
-  - {{property}}: {{oldValue}} -> {{newValue}}
+4. 处理样式修改时，请优先结合现有样式系统（如设计 token、CSS 变量、Tailwind 等）实现，不要机械写 inline style。
+5. 不要删除无关功能。
+6. 修改后请运行必要的构建、类型检查或测试。
 ```
 
 V0.2 Prompt 额外要求：
@@ -289,6 +303,7 @@ V0.2 Prompt 额外要求：
 1. 样式修改应优先落到现有 CSS、组件样式或设计 token 中。
 2. 不要机械把所有修改写成 inline style。
 3. 如果项目存在主题变量，应优先复用主题变量。
+4. 评论为空但存在 `styleChanges` 时，Prompt 中评论字段输出为「空」，AI 仅根据样式差异执行。
 
 ## 7. 隐私注意事项
 

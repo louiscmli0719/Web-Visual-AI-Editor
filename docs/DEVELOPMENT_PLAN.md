@@ -2,9 +2,12 @@
 
 ## 1. 当前阶段
 
-当前阶段：V0.1 MVP 最小闭环已完成代码实现，并已通过本地构建验证、Edge 自动化烟测和用户手动验收反馈。
+当前阶段：V0.1 MVP 已完成代码实现并通过用户手动验收。V0.2 样式编辑器已完成代码实现，并通过 `npm run verify`（单元测试 22/22、TypeScript、Vite build），等待 Chrome 手动加载复核。V0.3 评论增强已完成产品规格 + 可执行实施计划，等待用户审批后开始代码实现。
 
-当前目标：进入 V0.2 样式编辑器实现阶段，按 `docs/V0.2_STYLE_EDITOR_SPEC.md` 和 `docs/superpowers/plans/2026-05-22-v0.2-style-editor.md` 开始任务化开发。
+当前目标：
+
+1. 完成 V0.2 Chrome 手动验收。
+2. 获取 V0.3 计划审批后，按 `docs/superpowers/plans/2026-05-22-v0.3-comment-enhancement.md` 推进 V0.3 实现：记录元信息、页面级评论、编辑删除、状态切换、Prompt 分组、JSON 兼容。
 
 ## 2. 第一阶段目标
 
@@ -387,65 +390,91 @@ npm run verify
 
 ### Task 15：V0.2 数据结构和测试
 
-状态：未开始。
+状态：已完成。
 
 输入：V0.2 实现计划 Task 1。
 
 处理：
 
-1. 新增 `StyleChange` 相关类型。
+1. 新增 `StylePropertyName`、`StylePropertySnapshot`、`StyleChange`、`StyleDraft` 类型。
 2. 扩展 `EditRecord.styleChanges`。
-3. 调整 session 保存逻辑。
-4. 补充单元测试。
+3. 调整 session-store 保存逻辑，允许评论为空但 styleChanges 非空。
+4. 调整 `serializeEditorSession` 输出 `version: "0.2"`，`parseEditorSessionExport` 兼容 V0.1/V0.2。
+5. 补充单元测试覆盖样式记录、版本升级、V0.1 兼容导入。
 
-输出：记录可以保存评论和样式差异。
+输出：
+
+1. `extension/src/shared/types.ts`
+2. `extension/src/shared/json-schema.ts`
+3. `extension/src/content/session-store.ts`
+4. `extension/src/content/session-store.test.ts`
 
 ### Task 16：V0.2 样式读取与预览
 
-状态：未开始。
+状态：已完成。
 
 输入：选中元素和样式白名单。
 
 处理：
 
-1. 新增 computed style inspector。
-2. 新增 preview manager。
-3. 支持 apply、reset、resetAll。
-4. 接入 Content Script runtime。
+1. 新增 `style-inspector.ts`：导出 `STYLE_PROPERTY_DEFINITIONS`、`FONT_WEIGHT_OPTIONS`、`readStyleSnapshot`。
+2. 新增 `style-preview.ts`：通过 `WeakMap` 缓存原始 inline style，提供 `apply` / `reset` / `resetAll`。
+3. 在 `content/index.ts` 中接入选中流程：读取快照、维护 `styleDraft`、计算差异、在退出与导入时调用 `resetAll`。
+4. 补充 inspector 与 preview 单元测试。
 
-输出：用户可以读取并临时预览基础样式修改。
+输出：
+
+1. `extension/src/content/style-inspector.ts`
+2. `extension/src/content/style-inspector.test.ts`
+3. `extension/src/content/style-preview.ts`
+4. `extension/src/content/style-preview.test.ts`
+5. `extension/src/content/index.ts`
 
 ### Task 17：V0.2 Panel 和导出升级
 
-状态：未开始。
+状态：已完成。
 
 输入：样式快照、样式 draft 和记录列表。
 
 处理：
 
-1. 新增 StyleEditorPanel。
-2. 调整保存记录规则。
-3. 记录列表展示样式差异。
-4. JSON 导出升级到 0.2。
-5. AI Prompt 输出样式差异。
+1. 新增 `StyleEditorPanel.tsx`，按分组渲染白名单控件，提供"重置当前预览"按钮。
+2. 调整 `PanelState`、`PanelHandlers` 与 `panel-root` 注入样式相关字段。
+3. `CommentEditor` 文案改为"保存记录"，允许 styleChanges 触发保存。
+4. `RecordList` 渲染 `样式修改` 摘要。
+5. Prompt 模板追加样式段落和实现提示。
+6. `test-pages/basic.html` 增加主按钮、卡片、标题、间距样本。
 
-输出：V0.2 样式编辑器形成可验收闭环。
+输出：
+
+1. `extension/src/panel/components/StyleEditorPanel.tsx`
+2. `extension/src/panel/components/CommentEditor.tsx`
+3. `extension/src/panel/components/RecordList.tsx`
+4. `extension/src/panel/App.tsx`
+5. `extension/src/panel/panel-root.tsx`
+6. `extension/src/shared/prompt-template.ts`
+7. `extension/src/shared/prompt-template.test.ts`
+8. `extension/test-pages/basic.html`
 
 ## 5. 当前下一步
 
-建议下一步开始 V0.2 实现：
+V0.2 已经具备可手动验收的代码与构建：
 
-1. 从 `docs/superpowers/plans/2026-05-22-v0.2-style-editor.md` 的 Task 1 开始。
-2. 先写 `StyleChange` 和 session-store 测试。
-3. 再实现样式读取和 preview manager。
-4. 最后接入 Panel、JSON、Prompt 和手动验收。
+1. 在 Chrome 扩展管理页 `Load unpacked` 加载 `extension/dist`。
+2. 打开 `extension/test-pages/basic.html` 中的 `样式编辑器验收目标` 区块。
+3. 按 `docs/ACCEPTANCE_CRITERIA.md` 第 6 节逐项验证 V0.2 样式预览、重置、保存、JSON、Prompt 和退出清理。
+
+完成手动验收后，再进入 V0.3 准备：
+
+1. 评论类型（视觉 / 交互 / 内容 / 体验）。
+2. 评论优先级（必改 / 建议 / 备注）。
+3. 交互态说明（默认 / 悬停 / 点击 / 禁用）。
 
 已完成验证：
 
-1. `cd extension && npm run verify` 已通过。
-2. Edge MV3 自动化烟测已通过插件激活、元素选中、评论保存、记录列表、记录定位、Overlay / Panel 存在、导出 JSON / 复制 Prompt 按钮启用。
-3. Chrome 命令行方式加载 unpacked extension 在当前环境被浏览器策略限制，仍以 Chrome 扩展管理页 `Load unpacked` 作为正式人工验收方式。
-4. 用户已反馈当前手动测试没有问题，可以进入下一步。
+1. `cd extension && npm run verify` 已通过：单元测试 22/22、TypeScript、Vite build。
+2. Edge MV3 自动化烟测仍覆盖 V0.1 主流程，V0.2 部分以单元测试 + Chrome 手动验收为主。
+3. Chrome 命令行加载 unpacked extension 在当前环境被浏览器策略限制，仍以 Chrome 扩展管理页 `Load unpacked` 作为正式人工验收方式。
 
 继续实现前默认约定：
 

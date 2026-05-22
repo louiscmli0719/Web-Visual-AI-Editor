@@ -4,7 +4,11 @@
 
 V0.1 验收重点是确认插件完成最小闭环，而不是验证复杂编辑能力。
 
-当前状态：V0.1 已完成代码实现、自动化验证和用户手动验收反馈，后续作为 V0.2 开发基线。
+当前状态：
+
+1. V0.1 已完成代码实现、自动化验证和用户手动验收反馈，作为 V0.2 开发基线。
+2. V0.2 样式编辑器已完成代码实现，并通过 `npm run verify`（单元测试 22/22、TypeScript、Vite build）。
+3. V0.2 仍需 Chrome 手动加载 `extension/dist` 完成人工验收。
 
 最小闭环：
 
@@ -229,57 +233,62 @@ V0.1 不验收：
 9. 标尺测距。
 10. 自动布局。
 
-## 6. V0.2 验收草案
+## 6. V0.2 样式编辑器验收
 
 V0.2 验收重点是确认基础样式编辑器闭环，而不是生产级 CSS 生成。
+
+当前状态：代码实现已完成，单元测试 22/22 通过，等待 Chrome 手动加载复核。
 
 ### 6.1 样式读取
 
 Given 用户选中普通 HTMLElement  
 When Panel 更新  
-Then Panel 展示颜色、字号、字重、行高、间距、圆角、边框和阴影等白名单样式
+Then Panel 样式预览区按"颜色 / 排版 / 内边距 / 外边距 / 边框 / 阴影"分组展示白名单样式
 
 通过标准：
 
-1. 样式属性有固定展示顺序。
-2. 非 HTMLElement 元素显示不支持提示。
+1. 样式属性有固定展示顺序（与 `STYLE_PROPERTY_DEFINITIONS` 一致）。
+2. 非 HTMLElement 元素显示"该元素暂不支持样式预览"提示。
 3. 不读取输入框 value。
 
 ### 6.2 样式预览
 
 Given 用户已选中元素  
-When 用户修改 `backgroundColor`、`fontSize` 或 `borderRadius`  
+When 用户修改 `backgroundColor`、`fontSize`、`borderRadius` 或其他白名单属性  
 Then 页面元素即时显示预览效果
 
 通过标准：
 
 1. 预览只作用于当前元素。
-2. 预览写入临时 inline style。
-3. 无效输入不应导致页面报错。
+2. 预览写入临时 inline style，原 inline 值通过 `WeakMap` 缓存。
+3. 输入数值类属性时自动追加 `px`。
+4. 颜色取色器和文本输入双向同步。
+5. 无效输入不应导致页面或 Panel 报错。
 
 ### 6.3 重置预览
 
 Given 用户已经修改当前元素样式  
-When 用户点击“重置当前预览”  
+When 用户点击"重置当前预览"  
 Then 当前元素恢复修改前状态
 
 通过标准：
 
-1. 恢复原始 inline style。
-2. 不影响其他未修改样式。
-3. 退出编辑模式时清理全部预览。
+1. 恢复原始 inline style，未修改属性不受影响。
+2. 当前 `styleDraft` 被清空。
+3. 退出编辑模式或导入 JSON 时清理全部预览。
 
 ### 6.4 保存样式记录
 
 Given 用户修改了一个或多个样式  
-When 用户点击保存记录  
+When 用户点击"保存记录"  
 Then 记录保存 `styleChanges`
 
 通过标准：
 
-1. `styleChanges` 包含 property、oldValue、newValue。
+1. `styleChanges` 包含 `property`、`label`、`oldValue`、`newValue`，数值型附带 `unit: "px"`。
 2. 评论为空但有样式变化时允许保存。
-3. 评论为空且无样式变化时不允许保存。
+3. 评论为空且无样式变化时按钮禁用，不允许保存。
+4. 列表项展示样式差异摘要。
 
 ### 6.5 JSON 和 Prompt
 
@@ -290,8 +299,22 @@ Then 输出内容包含样式差异
 通过标准：
 
 1. JSON 版本升级到 `0.2`。
-2. 导入 V0.1 JSON 仍可成功。
-3. Prompt 明确提示 AI 不要机械写 inline style，应优先结合现有样式体系实现。
+2. 导入 V0.1 JSON 仍可成功（自动补 `styleChanges: []`）。
+3. Prompt 中每条记录附 `样式修改：` 子列表。
+4. Prompt 明确提示 AI 不要机械写 inline style，应优先结合现有样式体系实现。
+
+### 6.6 V0.2 手动验收步骤
+
+1. 运行 `cd extension && npm run verify`。
+2. 在 Chrome 扩展管理页 `Load unpacked` 加载 `extension/dist`。
+3. 打开 `extension/test-pages/basic.html`，关注页面的 `主要按钮`、`样式编辑器验收目标` 区块。
+4. 点击插件图标进入编辑模式。
+5. 依次验证：选中按钮 → 改背景色和圆角 → 看到即时预览；选中卡片 → 改字号和阴影；选中间距块 → 改 padding 和 margin。
+6. 验证"重置当前预览"恢复 inline style。
+7. 验证保存样式记录（评论为空）成功，列表展示样式摘要。
+8. 验证导出 JSON 含 `styleChanges` 和 `version: "0.2"`；尝试导入旧 V0.1 JSON。
+9. 验证复制 Prompt 文本包含 `样式修改：` 段落。
+10. 验证退出编辑模式后页面回到初始视觉，没有插件残留的 inline style。
 
 ## 7. 建议测试页面
 
