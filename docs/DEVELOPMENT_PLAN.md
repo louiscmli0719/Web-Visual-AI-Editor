@@ -2,7 +2,7 @@
 
 ## 1. 当前阶段
 
-当前阶段：V0.1 已通过用户手动验收；V0.2 样式编辑器与 V0.3 评论增强已通过 Chrome 手动验收。V0.4 标尺测距、V0.5 共享元素与 V0.5.5 UI Refresh 代码实现已完成，并补充 Panel 标题栏自由拖动交互；`npm run verify` 已通过，等待 Chrome 手动验收。
+当前阶段：V0.1 已通过用户手动验收；V0.2 样式编辑器与 V0.3 评论增强已通过 Chrome 手动验收。V0.4 标尺测距、V0.5 共享元素与 V0.5.5 UI Refresh 代码实现已完成，并补充 Panel 标题栏自由拖动交互；`npm run verify` 已通过，`v0.5.5-beta.1` GitHub Release 作为可安装预览包发布，等待 Chrome 手动验收。
 
 当前目标：
 
@@ -522,7 +522,7 @@ V0.4 已完成任务清单：
 
 ### Task V0.5.5-1 至 V0.5.5-12：UI Refresh 整合
 
-状态：代码实现完成，等待 Chrome 手动视觉与交互复核。
+状态：代码实现完成，`v0.5.5-beta.1` 预览包已准备通过 GitHub Release 分发，等待 Chrome 手动视觉与交互复核后决定正式版本。
 
 - `panel/design-tokens.ts` / `panel-root.tsx`：Sketch-style 哑光深色基础色、蓝紫强调、约 360px 面板、胶囊控件/徽标/焦点/减少动画样式已统一；Panel 标题栏拖动和视口边界约束已接入。
 - `InspectorSection.tsx` / `StatusBadge.tsx` / `FloatingToolbar.tsx`：主面板可复用构件已接入，点击徽标使用原生按钮语义。

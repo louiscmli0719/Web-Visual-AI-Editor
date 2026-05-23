@@ -4,7 +4,7 @@
 
 ## 当前阶段
 
-当前阶段：V0.1 已通过用户手动验收；V0.2 样式编辑器与 V0.3 评论增强已通过 Chrome 手动验收；V0.4 标尺测距、V0.5 共享元素与 V0.5.5 UI Refresh 代码闭环已完成并通过 `npm run verify`（89 个单元测试 + TypeScript + Vite build），等待 Chrome 手动验收。
+当前阶段：V0.1 已通过用户手动验收；V0.2 样式编辑器与 V0.3 评论增强已通过 Chrome 手动验收；V0.4 标尺测距、V0.5 共享元素与 V0.5.5 UI Refresh 代码闭环已完成并通过 `npm run verify`（89 个单元测试 + TypeScript + Vite build），以 GitHub Release `v0.5.5-beta.1` 预览包供安装复核，等待 Chrome 手动验收。
 
 当前目标：在 Chrome 中联合验收 V0.4 测距、V0.5 共享范围与 V0.5.5 新面板视觉、标题栏拖动、长度单位胶囊和键盘操作回归，再决定是否进入 V0.6 自动布局。
 
@@ -87,7 +87,7 @@
 | `docs/V0.5.5_UI_REFRESH_SPEC.md` | 已实现待验收 | 2026-05-24 | 覆盖 V0.5.5 Sketch-style 哑光 Inspector、胶囊控件、蓝紫状态、Panel 拖动、长度单位胶囊、键盘回归验收 |
 | `docs/TECH_ARCHITECTURE.md` | 已同步 V0.5.5 实现 | 2026-05-24 | 记录相似识别、批量高亮、Panel 哑光 Inspector 设计系统、标题栏拖动、长度单位胶囊与 Overlay 标签 |
 | `docs/DATA_FORMAT.md` | 已同步 V0.5 实现 | 2026-05-24 | version 0.5、`measurements`、`sharedGroup` 与长度单位 `px/pt` 兼容规则已写入 |
-| `docs/DEVELOPMENT_PLAN.md` | V0.5.5 实现已完成 | 2026-05-24 | V0.4/V0.5/V0.5.5 待 Chrome 联合验收 |
+| `docs/DEVELOPMENT_PLAN.md` | V0.5.5 预览发布 | 2026-05-24 | `v0.5.5-beta.1` 作为可安装预览包发布，V0.4/V0.5/V0.5.5 待 Chrome 联合验收 |
 | `docs/ACCEPTANCE_CRITERIA.md` | 已同步 V0.5.5 实现 | 2026-05-24 | UI Refresh、Panel 拖动、长度单位胶囊与键盘回归手动验收步骤已写入 |
 | `docs/superpowers/plans/2026-05-22-v0.2-style-editor.md` | 已执行完毕 | 2026-05-22 | 9 个 Task 全部完成 |
 | `docs/superpowers/plans/2026-05-22-v0.3-comment-enhancement.md` | 已执行完毕 | 2026-05-23 | 9 个 Task 全部完成 |

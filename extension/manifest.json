@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Web Visual AI Editor",
   "description": "Select page elements, collect visual edit comments, and export structured prompts or JSON.",
-  "version": "0.1.0",
+  "version": "0.5.5",
   "permissions": ["activeTab", "scripting", "storage", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],
   "action": {
@@ -13,4 +13,3 @@
     "type": "module"
   }
 }
-
