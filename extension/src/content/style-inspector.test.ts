@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readStyleSnapshot, STYLE_PROPERTY_DEFINITIONS } from "./style-inspector";
+import { LENGTH_UNIT_OPTIONS } from "../shared/style-units";
 
 function renderElement(html: string, style: string): HTMLElement {
   document.body.innerHTML = `<div data-host>${html}</div>`;
@@ -37,9 +38,9 @@ describe("style-inspector", () => {
     expect(snapshot).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ property: "color", label: "文本颜色", value: "rgb(255, 0, 0)", inputType: "color" }),
-        expect.objectContaining({ property: "fontSize", label: "字号", inputType: "number", unit: "px" }),
+        expect.objectContaining({ property: "fontSize", label: "字号", inputType: "number", unit: "px", unitOptions: LENGTH_UNIT_OPTIONS }),
         expect.objectContaining({ property: "fontWeight", label: "字重", inputType: "select" }),
-        expect.objectContaining({ property: "borderRadius", label: "圆角", inputType: "number", unit: "px" })
+        expect.objectContaining({ property: "borderRadius", label: "圆角", inputType: "number", unit: "px", unitOptions: LENGTH_UNIT_OPTIONS })
       ])
     );
 

@@ -15,7 +15,11 @@ V0.1 使用 Chrome Extension Manifest V3 实现一个无需后端服务的本地
 当前阶段：
 
 1. V0.1 已完成代码实现，并通过用户手动验收反馈。
-2. V0.2 样式编辑器已完成代码实现，已通过 `npm run verify`（单测 22/22、TypeScript、Vite build），等待 Chrome 手动加载复核。
+2. V0.2 样式编辑器已完成代码实现，已通过 Chrome 手动验收。
+3. V0.3 评论增强已完成代码实现，已通过 Chrome 手动验收。
+4. V0.4 标尺测距已完成代码实现，仍待 Chrome 手动验收。
+5. V0.5 共享元素闭环已完成代码实现：相似识别、批量高亮、`sharedGroup` 记录、范围筛选和 Prompt 输出均已接入，等待 Chrome 手动验收。
+6. V0.5.5 UI Refresh 代码整合已完成：Sketch-style 哑光深色 Inspector、蓝紫状态、浮动工具栏、可拖动 Panel、紧凑记录行与 Overlay 红粉高对比反馈均已接入；等待 Chrome 视觉与键盘回归验收。
 
 ## 2. 推荐技术栈
 
@@ -47,17 +51,33 @@ extension/
     content/session-store.ts
     content/style-inspector.ts
     content/style-preview.ts
+    content/measurement.ts          # V0.4 新增
+    content/similar-elements.ts     # V0.5 新增
     overlay/overlay-root.ts
     overlay/highlight-layer.ts
     panel/panel-root.tsx
+    panel/design-tokens.ts             # V0.5.5 设计 token
     panel/App.tsx
     panel/components/
       ElementInfoPanel.tsx
       StyleEditorPanel.tsx
       CommentEditor.tsx
       RecordList.tsx
+      RecordFilters.tsx           # V0.3 新增
+      ConfirmDialog.tsx           # V0.3 新增
+      PageCommentPanel.tsx        # V0.3 新增
+      MeasurementPanel.tsx        # V0.4 新增
+      SimilarElementsPanel.tsx    # V0.5 新增
+      InspectorSection.tsx        # V0.5.5 新增
+      StatusBadge.tsx             # V0.5.5 新增
+      FloatingToolbar.tsx         # V0.5.5 新增
       ImportExportBar.tsx
     shared/
+      types.ts
+      messages.ts
+      prompt-template.ts
+      json-schema.ts
+      record-metadata.ts          # V0.3 新增
   test-pages/basic.html
 ```
 
@@ -81,11 +101,26 @@ npm run verify
 
 1. `manifest.json` 仍放在 `extension/` 根目录，构建时复制到 `dist/manifest.json`。
 2. `background/service-worker.ts` 已接入插件图标点击和 content script 注入。
-3. `content/index.ts` 已提供编辑模式启停、hover、点击选中、评论保存、记录定位、JSON 导入导出、Prompt 复制、样式快照、临时预览和样式差异保存。
+3. `content/index.ts` 已提供编辑模式启停、hover、点击选中、评论保存（含 V0.3 元数据）、记录定位、JSON 导入导出、Prompt 复制、样式快照、临时预览、样式差异保存、记录编辑、记录删除、状态切换、筛选状态管理。
 4. `content/style-inspector.ts` 暴露 `STYLE_PROPERTY_DEFINITIONS` 与 `readStyleSnapshot(element)`，按白名单顺序返回 computed style。
 5. `content/style-preview.ts` 暴露 `createStylePreviewManager()`，使用 `WeakMap` 保存元素原始 inline style，支持 `apply` / `reset` / `resetAll`。
-6. React Panel 已接入选中元素信息、样式编辑、评论输入、记录列表、导入导出和复制 Prompt 操作。
-7. `extension/test-pages/basic.html` 包含 V0.1 元素以及 V0.2 主按钮、卡片、标题、间距样本，用于本地手动验收。
+6. `content/session-store.ts` 管理评论、测距与共享范围记录；导出 V0.5，兼容导入 V0.1 至 V0.5，并在新增、编辑、导入边界统一清除页面评论的元素专属字段。
+7. `shared/record-metadata.ts` 是 V0.3 类型/优先级/状态/交互态选项的单一来源，提供中文映射和默认值。
+8. React Panel 已接入选中元素信息、样式编辑、页面/元素评论、记录列表、ConfirmDialog、导入导出和复制 Prompt；V0.4 接入测距，V0.5 接入相似元素折叠区块、批量复选框与范围筛选，V0.5.5 使用 `InspectorSection` / `StatusBadge` / `FloatingToolbar` 统一主界面。
+9. `content/measurement.ts` 是 V0.4 纯函数模块：`readSize`、`readViewportDistances`、`readParentDistances`、`computePairMeasurement`，接受 DOMRect-like 输入，输出取整数值。
+10. `overlay/overlay-root.ts` 在 V0.4 扩展了 measurement layer：渲染 size label（右上角，自动避让视口）和 pair distance lines（水平/垂直）以及距离数值；V0.5.5 直接复用该 Shadow DOM 标签作为元素标签，并使用红粉高对比反馈，不另向宿主页面注入标签样式。
+11. `content/similar-elements.ts` 实现三级相似识别与 50 个目标截断；`overlay-root.ts` 渲染 3 秒批量虚线高亮。
+12. `extension/test-pages/basic.html` 额外包含 V0.5 卡片、按钮组与列表项批量目标。
+
+## 2.2 V0.5.5 面板设计系统与可访问性
+
+1. `panel/panel-root.tsx` 是 Shadow DOM 样式唯一落点，使用 `rgba(18, 18, 18, 0.97)` 哑光深色基底、深灰胶囊控件、弱边界与蓝紫强调色，避免污染宿主页面。
+2. `InspectorSection` 提供语义容器包装（`section` / `article` / `footer`），`StatusBadge` 在可点击场景渲染原生 `button`，记录范围高亮可通过键盘触发。
+3. `CommentEditor` 使用 React `useId()` 生成表单关联 ID，页面评论与元素评论同时存在时不会产生重复 `id`。
+4. `ConfirmDialog` 初始聚焦取消按钮、支持 `Escape` 关闭与 Tab 循环，并在关闭后恢复触发元素焦点。
+5. 页面评论编辑期间隐藏元素评论保存入口，防止同一 `editingRecord` 被错误更新为元素范围记录。
+6. `panel-root.tsx` 绑定 Panel 标题栏 Pointer Events 拖动逻辑：默认右侧定位不变，用户拖动后改用 `left/top` 定位，并在拖动与窗口 resize 时限制在视口 8px 安全边距内。
+7. `StyleEditorPanel` 的长度输入采用“数值 + 单位”胶囊控件，`px` 和 `pt` 之间自动换算；`StyleChange.unit` 允许记录长度单位，便于导出和 Prompt 保留修改意图。
 
 ## 3. Manifest V3 权限
 
@@ -171,6 +206,7 @@ npm run verify
 2. 绘制 selected 高亮框。
 3. 绘制定位闪烁效果。
 4. 根据 scroll 和 resize 重新计算位置。
+5. 绘制测距线与相似元素批量虚线高亮，批量高亮在 3 秒后淡出清理。
 
 不负责：
 
@@ -194,9 +230,10 @@ Overlay 根节点：
 
 Panel 根节点：
 
-1. 固定在页面右侧。
+1. 默认固定在页面右侧。
 2. 有独立 Shadow DOM 样式。
 3. 面板区域需要排除元素选择，避免用户选中插件 UI。
+4. 标题栏可作为拖动手柄，拖动位置只属于当前页面会话，不进入业务数据。
 
 ## 6. 消息流
 
@@ -228,7 +265,16 @@ Panel 根节点：
 5. Session 更新。
 6. Panel 列表刷新。
 
-### 6.4 定位元素
+### 6.4 保存共享元素记录
+
+1. 用户选中 `HTMLElement` 后，Content Script 调用 `findSimilarElements()`。
+2. Panel 展示匹配级别、候选 selector 和“应用到相似元素”复选框。
+3. 用户可先通过 hover/聚焦预览单个候选，或点击“高亮全部”检查范围。
+4. 保存时，仅在用户主动勾选后把当前候选快照写为 `EditRecord.sharedGroup`。
+5. 记录页可按单元素/批量筛选，并使用保存时快照进行批量高亮。
+6. JSON 与 Prompt 导出批量范围；导入 V0.1 至 V0.4 时 `sharedGroup` 规范化为 `null`。
+
+### 6.5 定位元素
 
 1. 用户点击记录列表。
 2. Content Script 使用 selector 查询 DOM。

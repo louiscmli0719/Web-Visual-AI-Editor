@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { InspectorSection } from "./InspectorSection";
 
 type ImportExportBarProps = {
   disabled: boolean;
@@ -22,16 +23,17 @@ export function ImportExportBar({ disabled, onCopyPrompt, onExportJson, onImport
   }
 
   return (
-    <footer className="wvaie-section">
-      <h2>导入导出</h2>
+    <InspectorSection as="footer" className="wvaie-import-export">
+      <h2>交付与恢复</h2>
       <div className="wvaie-footer">
-        <button className="wvaie-button" disabled={disabled} onClick={onExportJson} type="button">
+        <button className="wvaie-button wvaie-button-primary" disabled={disabled} onClick={onExportJson} type="button">
           导出 JSON
         </button>
         <button className="wvaie-button" disabled={disabled} onClick={onCopyPrompt} type="button">
           复制 Prompt
         </button>
       </div>
+      <p className="wvaie-privacy-note">导出内容可能包含页面 URL 与选中文本，请在分享前检查敏感信息。</p>
       <textarea
         className="wvaie-textarea"
         onChange={(event) => setImportValue(event.target.value)}
@@ -42,6 +44,6 @@ export function ImportExportBar({ disabled, onCopyPrompt, onExportJson, onImport
       <button className="wvaie-button" disabled={!importValue.trim()} onClick={handleImport} type="button">
         导入 JSON
       </button>
-    </footer>
+    </InspectorSection>
   );
 }

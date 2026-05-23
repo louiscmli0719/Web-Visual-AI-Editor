@@ -3,14 +3,24 @@ import {
   DATA_FORMAT_VERSION,
   SUPPORTED_IMPORT_VERSIONS
 } from "../shared/json-schema";
+import { DEFAULT_RECORD_METADATA } from "../shared/record-metadata";
 import type {
   EditRecord,
   EditorSession,
   EditorSessionExport,
   ElementSnapshot,
   PageInfo,
-  StyleChange
+  StyleChange,
+  RecordMetadata,
+  RecordStatus,
+  Measurements,
+  SharedGroup,
+  RecordCategory,
+  RecordPriority,
+  InteractionState,
+  RecordScope
 } from "../shared/types";
+import { isStyleUnit } from "../shared/style-units";
 
 type RuntimeOptions = {
   idFactory?: () => string;
@@ -31,7 +41,7 @@ export function createInitialSession(options: RuntimeOptions = {}): EditorSessio
   const now = readNow(options);
 
   return {
-    version: "0.2",
+    version: "0.5",
     sessionId: readId(options),
     page: readPageInfo(),
     createdAt: now,
@@ -42,14 +52,19 @@ export function createInitialSession(options: RuntimeOptions = {}): EditorSessio
 
 export function addEditRecord(
   session: EditorSession,
-  element: ElementSnapshot,
+  element: ElementSnapshot | null,
   comment: string,
   styleChanges: StyleChange[] = [],
+  metadata: RecordMetadata = DEFAULT_RECORD_METADATA,
+  measurements: Measurements | null = null,
+  sharedGroup: SharedGroup | null = null,
   options: RuntimeOptions = {}
 ): EditorSession {
   const trimmedComment = comment.trim();
+  const isPageScope = metadata.scope === "page";
+  const scopedStyleChanges = isPageScope ? [] : styleChanges;
 
-  if (!trimmedComment && styleChanges.length === 0) {
+  if (!trimmedComment && scopedStyleChanges.length === 0) {
     return session;
   }
 
@@ -62,14 +77,107 @@ export function addEditRecord(
       ...session.records,
       {
         id: readId(options),
-        element,
+        element: isPageScope ? null : element,
         comment: trimmedComment,
-        status: "open",
+        category: metadata.category,
+        priority: metadata.priority,
+        status: metadata.status,
+        interactionState: isPageScope ? null : metadata.interactionState,
+        scope: metadata.scope,
         createdAt: now,
         updatedAt: now,
-        styleChanges
+        styleChanges: scopedStyleChanges,
+        measurements: isPageScope ? null : measurements,
+        sharedGroup: isPageScope ? null : sharedGroup
       }
     ]
+  };
+}
+
+export function updateEditRecord(
+  session: EditorSession,
+  recordId: string,
+  comment: string,
+  metadata: RecordMetadata,
+  measurements: Measurements | null = null,
+  sharedGroup: SharedGroup | null = null,
+  options: RuntimeOptions = {}
+): EditorSession {
+  const recordIndex = session.records.findIndex((r) => r.id === recordId);
+
+  if (recordIndex === -1) {
+    return session;
+  }
+
+  const now = readNow(options);
+  const isPageScope = metadata.scope === "page";
+  const updatedRecords = [...session.records];
+  updatedRecords[recordIndex] = {
+    ...updatedRecords[recordIndex],
+    element: isPageScope ? null : updatedRecords[recordIndex].element,
+    comment: comment.trim(),
+    category: metadata.category,
+    priority: metadata.priority,
+    status: metadata.status,
+    interactionState: isPageScope ? null : metadata.interactionState,
+    scope: metadata.scope,
+    styleChanges: isPageScope ? [] : updatedRecords[recordIndex].styleChanges,
+    measurements: isPageScope ? null : measurements,
+    sharedGroup: isPageScope ? null : sharedGroup,
+    updatedAt: now
+  };
+
+  return {
+    ...session,
+    updatedAt: now,
+    records: updatedRecords
+  };
+}
+
+export function deleteEditRecord(
+  session: EditorSession,
+  recordId: string,
+  options: RuntimeOptions = {}
+): EditorSession {
+  const recordIndex = session.records.findIndex((r) => r.id === recordId);
+
+  if (recordIndex === -1) {
+    return session;
+  }
+
+  const now = readNow(options);
+
+  return {
+    ...session,
+    updatedAt: now,
+    records: session.records.filter((r) => r.id !== recordId)
+  };
+}
+
+export function setRecordStatus(
+  session: EditorSession,
+  recordId: string,
+  status: RecordStatus,
+  options: RuntimeOptions = {}
+): EditorSession {
+  const recordIndex = session.records.findIndex((r) => r.id === recordId);
+
+  if (recordIndex === -1) {
+    return session;
+  }
+
+  const now = readNow(options);
+  const updatedRecords = [...session.records];
+  updatedRecords[recordIndex] = {
+    ...updatedRecords[recordIndex],
+    status,
+    updatedAt: now
+  };
+
+  return {
+    ...session,
+    updatedAt: now,
+    records: updatedRecords
   };
 }
 
@@ -132,13 +240,14 @@ export function parseEditorSessionExport(value: string, options: RuntimeOptions 
     };
   }
 
-  const records: EditRecord[] = parsed.records.map((record) => normalizeImportedRecord(record));
+  const importedVersion = parsed.version as string;
+  const records: EditRecord[] = parsed.records.map((record) => normalizeImportedRecord(record, importedVersion));
   const now = readNow(options);
 
   return {
     ok: true,
     session: {
-      version: "0.2",
+      version: "0.5",
       sessionId: readId(options),
       page: parsed.page,
       createdAt: now,
@@ -148,19 +257,67 @@ export function parseEditorSessionExport(value: string, options: RuntimeOptions 
   };
 }
 
-function normalizeImportedRecord(value: Record<string, unknown>): EditRecord {
-  const element = value.element as ElementSnapshot;
+function normalizeImportedRecord(value: Record<string, unknown>, version: string): EditRecord {
+  const scope: RecordScope = value.scope === "page" ? "page" : "element";
+  const isPageScope = scope === "page";
+  const element = isPageScope ? null : (value.element as ElementSnapshot | null);
   const rawStyleChanges = Array.isArray(value.styleChanges) ? value.styleChanges : [];
-  const styleChanges = rawStyleChanges.filter(isStyleChangeLike).map((change) => ({ ...change }));
+  const styleChanges = isPageScope ? [] : rawStyleChanges.filter(isStyleChangeLike).map((change) => ({ ...change }));
+
+  // V0.3 fields with fallback to defaults for V0.1/V0.2
+  const category: RecordCategory =
+    value.category === "visual" ||
+    value.category === "copy" ||
+    value.category === "interaction" ||
+    value.category === "layout" ||
+    value.category === "data" ||
+    value.category === "state"
+      ? value.category
+      : DEFAULT_RECORD_METADATA.category;
+  const priority: RecordPriority =
+    value.priority === "low" || value.priority === "medium" || value.priority === "high"
+      ? value.priority
+      : DEFAULT_RECORD_METADATA.priority;
+  const interactionState: InteractionState | null =
+    !isPageScope &&
+    (value.interactionState === "default" ||
+      value.interactionState === "hover" ||
+      value.interactionState === "focus" ||
+      value.interactionState === "active" ||
+      value.interactionState === "disabled" ||
+      value.interactionState === "loading" ||
+      value.interactionState === "empty" ||
+      value.interactionState === "error")
+      ? value.interactionState
+      : null;
+
+  // Status: V0.1/V0.2 had "open"/"resolved", V0.3 adds "deferred"
+  let status: RecordStatus = "open";
+  if (value.status === "resolved") status = "resolved";
+  else if (value.status === "deferred") status = "deferred";
+
+  // V0.4: measurements (null for V0.1/V0.2/V0.3)
+  const measurements = scope === "element" && isMeasurementsLike(value.measurements) ? value.measurements : null;
+  // V0.5: only V0.5 payloads may carry a persisted shared selection scope.
+  const sharedGroup =
+    scope === "element" && element && version === "0.5" && isSharedGroupLike(value.sharedGroup)
+      ? value.sharedGroup
+      : null;
 
   return {
     id: String(value.id),
     element,
     comment: typeof value.comment === "string" ? value.comment : "",
-    status: value.status === "resolved" ? "resolved" : "open",
+    category,
+    priority,
+    status,
+    interactionState,
+    scope,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString(),
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString(),
-    styleChanges
+    styleChanges,
+    measurements,
+    sharedGroup
   };
 }
 
@@ -205,18 +362,17 @@ function isPageInfo(value: unknown): value is PageInfo {
 }
 
 function isEditRecordLike(value: unknown): value is Record<string, unknown> {
-  return (
-    isObject(value) &&
-    typeof value.id === "string" &&
-    typeof value.comment === "string" &&
-    isObject(value.element) &&
-    typeof value.element.selector === "string" &&
-    isObject(value.element.rect) &&
-    typeof value.element.rect.x === "number" &&
-    typeof value.element.rect.y === "number" &&
-    typeof value.element.rect.width === "number" &&
-    typeof value.element.rect.height === "number"
-  );
+  if (!isObject(value) || typeof value.id !== "string" || typeof value.comment !== "string") {
+    return false;
+  }
+
+  // Page-scope records ignore any stale element payload during normalization.
+  if (value.scope === "page") {
+    return true;
+  }
+
+  // Element-scope records must have a valid target element.
+  return isElementSnapshotLike(value.element);
 }
 
 function isStyleChangeLike(value: unknown): value is StyleChange {
@@ -225,6 +381,51 @@ function isStyleChangeLike(value: unknown): value is StyleChange {
     typeof value.property === "string" &&
     typeof value.label === "string" &&
     typeof value.oldValue === "string" &&
-    typeof value.newValue === "string"
+    typeof value.newValue === "string" &&
+    (value.unit === undefined || isStyleUnit(value.unit))
+  );
+}
+
+function isMeasurementsLike(value: unknown): value is Measurements {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  // Minimum validation: must have size with numeric width/height
+  if (!isObject(value.size) || typeof value.size.width !== "number" || typeof value.size.height !== "number") {
+    return false;
+  }
+
+  // viewport must have 4 numeric distances
+  if (!isObject(value.viewport)) {
+    return false;
+  }
+
+  return true;
+}
+
+function isSharedGroupLike(value: unknown): value is SharedGroup {
+  return (
+    isObject(value) &&
+    (value.matchLevel === "exact" || value.matchLevel === "class-primary" || value.matchLevel === "tag-only") &&
+    typeof value.primaryFeature === "string" &&
+    typeof value.totalMatched === "number" &&
+    typeof value.truncated === "boolean" &&
+    Array.isArray(value.targets) &&
+    value.targets.every(isElementSnapshotLike)
+  );
+}
+
+function isElementSnapshotLike(value: unknown): value is ElementSnapshot {
+  return (
+    isObject(value) &&
+    typeof value.selector === "string" &&
+    typeof value.tagName === "string" &&
+    typeof value.text === "string" &&
+    isObject(value.rect) &&
+    typeof value.rect.x === "number" &&
+    typeof value.rect.y === "number" &&
+    typeof value.rect.width === "number" &&
+    typeof value.rect.height === "number"
   );
 }

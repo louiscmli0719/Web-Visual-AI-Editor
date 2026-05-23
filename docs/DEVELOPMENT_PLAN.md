@@ -2,12 +2,12 @@
 
 ## 1. 当前阶段
 
-当前阶段：V0.1 MVP 已完成代码实现并通过用户手动验收。V0.2 样式编辑器已完成代码实现，并通过 `npm run verify`（单元测试 22/22、TypeScript、Vite build），等待 Chrome 手动加载复核。V0.3 评论增强已完成产品规格 + 可执行实施计划，等待用户审批后开始代码实现。
+当前阶段：V0.1 已通过用户手动验收；V0.2 样式编辑器与 V0.3 评论增强已通过 Chrome 手动验收。V0.4 标尺测距、V0.5 共享元素与 V0.5.5 UI Refresh 代码实现已完成，并补充 Panel 标题栏自由拖动交互；`npm run verify` 已通过，等待 Chrome 手动验收。
 
 当前目标：
 
-1. 完成 V0.2 Chrome 手动验收。
-2. 获取 V0.3 计划审批后，按 `docs/superpowers/plans/2026-05-22-v0.3-comment-enhancement.md` 推进 V0.3 实现：记录元信息、页面级评论、编辑删除、状态切换、Prompt 分组、JSON 兼容。
+1. 按 `docs/ACCEPTANCE_CRITERIA.md` 联合验收 V0.4 测距、V0.5 共享元素与 V0.5.5 UI Refresh。
+2. 重点回归页面评论编辑隔离、删除弹窗键盘操作和宿主页面退出恢复，避免视觉升级掩盖业务回归。
 
 ## 2. 第一阶段目标
 
@@ -458,23 +458,90 @@ npm run verify
 
 ## 5. 当前下一步
 
-V0.2 已经具备可手动验收的代码与构建：
+V0.4 已经具备可手动验收的代码与构建：
 
-1. 在 Chrome 扩展管理页 `Load unpacked` 加载 `extension/dist`。
-2. 打开 `extension/test-pages/basic.html` 中的 `样式编辑器验收目标` 区块。
-3. 按 `docs/ACCEPTANCE_CRITERIA.md` 第 6 节逐项验证 V0.2 样式预览、重置、保存、JSON、Prompt 和退出清理。
+1. 在 Chrome 扩展管理页 `Load unpacked` 重新加载 `extension/dist`。
+2. 打开 `extension/test-pages/basic.html` 中的 `V0.4 标尺测距验收目标` 区块。
+3. 按 `docs/ACCEPTANCE_CRITERIA.md` 第 8 节逐项验证 V0.4 元素尺寸/视口距离/父容器距离/双元素测距/附加测距复选框/Prompt 测距段落/JSON 兼容。
 
-完成手动验收后，再进入 V0.3 准备：
+V0.4 已完成任务清单：
 
-1. 评论类型（视觉 / 交互 / 内容 / 体验）。
-2. 评论优先级（必改 / 建议 / 备注）。
-3. 交互态说明（默认 / 悬停 / 点击 / 禁用）。
+### Task V0.4-1：Measurement Module + Types
+- 创建 `extension/src/content/measurement.ts`（4 个纯函数：readSize / readViewportDistances / readParentDistances / computePairMeasurement）
+- 创建 `extension/src/content/measurement.test.ts`（12 个测试）
+- 扩展 `types.ts` 添加 Measurements 类型与 EditRecord.measurements 字段
+
+### Task V0.4-2：Session Store + JSON 兼容
+- `addEditRecord` 和 `updateEditRecord` 接受 measurements 参数
+- 升级 JSON 版本到 0.4，支持 V0.1/V0.2/V0.3/V0.4 导入
+- 旧版本记录导入时默认补 `measurements: null`
+
+### Task V0.4-3：Overlay 测距渲染
+- 扩展 `overlay-root.ts` 添加 size label、pair distance lines、distance labels
+- 新增 MeasurementOverlay 类型
+- 标签位置自动避让视口边缘
+
+### Task V0.4-4：Panel Measurement Panel
+- 创建 `extension/src/panel/components/MeasurementPanel.tsx`
+- 显示尺寸、距视口、距父容器、双元素测距分组
+- 测距模式按钮：开始/重置/退出
+
+### Task V0.4-5 + 6：Runtime 集成 + 附加测距复选框
+- EditorRuntime 添加 measurementMode、pairFirstElement、pairSecondElement、currentMeasurements、attachMeasurements
+- 实现 enterMeasurementMode、exitMeasurementMode、resetPairMeasurement 等 handlers
+- handleClick 支持双元素测距状态机
+- saveRecord / updateRecord 根据 attachMeasurements 写入 measurements
+- 双元素测距强制 attachMeasurements = true
+- 视口滚动/resize 时重新计算 measurements
+
+### Task V0.4-7：AI Prompt 测距段落
+- 重构 `prompt-template.ts` 添加 formatMeasurements 函数
+- 输出"测距："子段落，含尺寸/距视口/距父容器/与目标元素
+- null 字段自动省略
+- 4 个新增测试覆盖所有分支
+
+### Task V0.4-8：测试页面
+- 添加 V0.4 标尺测距验收目标区块
+- 包含双元素（A / B 按钮，水平间距 24px）、子父容器（padding=40px）
+
+### Task V0.4-9：文档同步
+- DOCUMENTATION_INDEX.md、PROJECT_ROADMAP.md、DEVELOPMENT_PLAN.md、ACCEPTANCE_CRITERIA.md、DATA_FORMAT.md、TECH_ARCHITECTURE.md 全部同步
+
+### Task V0.5-1 至 V0.5-10：共享元素闭环
+
+状态：代码实现完成，等待 Chrome 手动验收。
+
+- `types.ts` / `session-store.ts` / `json-schema.ts`：导出版本升级至 `0.5`，记录新增 `sharedGroup`，旧数据兼容导入。
+- `similar-elements.ts`：三级匹配、插件节点排除与 50 个上限已具备单元测试。
+- `overlay-root.ts`：批量目标红粉虚线高亮，3 秒后淡出清理。
+- `SimilarElementsPanel.tsx` / `CommentEditor.tsx`：候选预览、高亮全部与主动批量应用复选框。
+- `RecordList.tsx` / `RecordFilters.tsx`：批量徽标、截断提示、单元素/批量筛选。
+- `prompt-template.ts`：批量范围与截断提醒写入 AI Prompt。
+- `test-pages/basic.html`：卡片、按钮、列表批量验收目标。
+- 同轮恢复 `PageCommentPanel` 主流程接线，避免页面级评论在面板重构后不可新建或编辑。
+
+### Task V0.5.5-1 至 V0.5.5-12：UI Refresh 整合
+
+状态：代码实现完成，等待 Chrome 手动视觉与交互复核。
+
+- `panel/design-tokens.ts` / `panel-root.tsx`：Sketch-style 哑光深色基础色、蓝紫强调、约 360px 面板、胶囊控件/徽标/焦点/减少动画样式已统一；Panel 标题栏拖动和视口边界约束已接入。
+- `InspectorSection.tsx` / `StatusBadge.tsx` / `FloatingToolbar.tsx`：主面板可复用构件已接入，点击徽标使用原生按钮语义。
+- `ElementInfoPanel.tsx` / `StyleEditorPanel.tsx` / `MeasurementPanel.tsx` / `SimilarElementsPanel.tsx` / `CommentEditor.tsx` / `RecordList.tsx` / `ImportExportBar.tsx`：主要内容区已改为紧凑 Inspector 区块和深灰控件；长度输入改为左数值右单位胶囊，默认 `px`、支持 `pt`、清空归零。
+- `overlay/overlay-root.ts`：复用现有尺寸标签承载元素标签能力，选择框、测距线、相似高亮与标签配色改为红粉高对比反馈；不引入新的宿主页面样式注入点。
+- `CommentEditor.tsx` / `ConfirmDialog.tsx` / `App.tsx`：修复重复表单 ID、对话框焦点/Escape/Tab 键盘操作，以及页面记录编辑误串元素评论入口的问题。
 
 已完成验证：
 
-1. `cd extension && npm run verify` 已通过：单元测试 22/22、TypeScript、Vite build。
-2. Edge MV3 自动化烟测仍覆盖 V0.1 主流程，V0.2 部分以单元测试 + Chrome 手动验收为主。
-3. Chrome 命令行加载 unpacked extension 在当前环境被浏览器策略限制，仍以 Chrome 扩展管理页 `Load unpacked` 作为正式人工验收方式。
+1. `cd extension && npm run verify` 已通过：89 个单元测试、TypeScript、Vite build。
+2. 长度单位胶囊保存记录时已按实际新值后缀写入 `StyleChange.unit`，避免切换为 `pt` 后导出仍标记为 `px`。
+3. Edge MV3 自动化烟测仍覆盖 V0.1 主流程，V0.2 至 V0.5.5 的页面交互和视觉部分以单元测试 + Chrome 手动验收为主。
+4. Chrome 命令行加载 unpacked extension 在当前环境被浏览器策略限制，仍以 Chrome 扩展管理页 `Load unpacked` 作为正式人工验收方式。
+
+---
+
+### 历史版本完成情况（V0.3 及之前保留以备追溯）
+
+V0.3 评论增强已通过 Chrome 手动验收，V0.2 样式编辑器已通过 Chrome 手动验收，V0.1 最小闭环已通过用户手动验收。详细任务记录见 git 历史与 plan 文档。
 
 继续实现前默认约定：
 

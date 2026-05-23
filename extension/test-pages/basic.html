@@ -122,13 +122,180 @@
         margin-top: 4px;
         margin-bottom: 4px;
       }
+
+      .interaction-targets {
+        display: grid;
+        gap: 16px;
+      }
+
+      .hover-button {
+        background: #3b82f6;
+        color: #ffffff;
+        border: 1px solid #2563eb;
+        border-radius: 6px;
+        padding: 10px 20px;
+        font-size: 14px;
+        transition: background 0.2s;
+      }
+
+      .hover-button:hover {
+        background: #2563eb;
+      }
+
+      .disabled-button {
+        background: #e5e7eb;
+        color: #9ca3af;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 10px 20px;
+        font-size: 14px;
+        cursor: not-allowed;
+      }
+
+      .empty-state {
+        padding: 32px;
+        text-align: center;
+        color: #94a3b8;
+        background: #f8fafc;
+        border: 2px dashed #cbd5e1;
+        border-radius: 8px;
+      }
+
+      .loading-skeleton {
+        height: 16px;
+        background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
+        background-size: 200% 100%;
+        border-radius: 4px;
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes skeleton-pulse {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+
+      .error-banner {
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        border-radius: 6px;
+        padding: 12px 16px;
+        color: #991b1b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .focus-input {
+        border: 2px solid transparent;
+        border-radius: 6px;
+        padding: 10px 14px;
+        width: 100%;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+
+      .focus-input:focus {
+        border-color: #3b82f6;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+
+      .ruler-targets {
+        display: grid;
+        gap: 24px;
+      }
+
+      .ruler-row {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+
+      .ruler-button-a {
+        background: #10b981;
+        color: #ffffff;
+        border: 1px solid #059669;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+
+      .ruler-button-b {
+        background: #8b5cf6;
+        color: #ffffff;
+        border: 1px solid #7c3aed;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+
+      .ruler-container {
+        background: #f1f5f9;
+        border: 2px dashed #94a3b8;
+        border-radius: 8px;
+        padding: 40px;
+      }
+
+      .ruler-child {
+        background: #006be6;
+        color: #ffffff;
+        border-radius: 6px;
+        padding: 16px 24px;
+        width: 200px;
+        text-align: center;
+      }
+
+      .ruler-hint {
+        color: #64748b;
+        font: 12px ui-monospace, Menlo, monospace;
+        margin: 0;
+      }
+
+      .shared-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .shared-card {
+        display: grid;
+        gap: 6px;
+        border: 1px solid #c7d2fe;
+        border-radius: 10px;
+        background: #eef2ff;
+        padding: 14px;
+      }
+
+      .shared-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .shared-btn.btn-primary {
+        border-color: #4f46e5;
+        background: #4f46e5;
+        color: #ffffff;
+      }
+
+      .shared-list {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding-left: 22px;
+      }
+
+      .shared-item {
+        border-radius: 6px;
+        background: #f8fafc;
+        padding: 7px 10px;
+      }
     </style>
   </head>
   <body>
     <main>
       <section>
         <h1 data-testid="hero-title">项目验收页面</h1>
-        <p>这个页面用于验证插件选择元素、添加评论、定位记录、导出 JSON 和复制 Prompt 的 V0.1 闭环，以及 V0.2 样式预览闭环。</p>
+        <p>这个页面用于验证 V0.1 基础闭环、V0.2 样式预览、V0.3 评论增强、V0.4 标尺测距、V0.5 共享元素，以及 V0.5.5 面板视觉与交互回归。</p>
         <div class="actions">
           <button class="primary" id="save-button">保存修改</button>
           <button data-testid="cancel-button">取消</button>
@@ -148,6 +315,70 @@
             内外边距演示块
           </div>
         </div>
+      </section>
+
+      <section>
+        <h2>V0.3 评论增强验收目标</h2>
+        <p>用于验证类型、优先级、状态、交互态记录的元素样本。</p>
+        <div class="interaction-targets">
+          <button class="hover-button" id="hover-target" data-testid="hover-target">悬停状态按钮</button>
+          <button class="disabled-button" id="disabled-target" data-testid="disabled-target" disabled>禁用状态按钮</button>
+          <input class="focus-input" id="focus-target" data-testid="focus-target" placeholder="点击聚焦输入框" />
+          <div class="empty-state" id="empty-state-target" data-testid="empty-state-target">
+            <p>空状态：当前没有数据</p>
+          </div>
+          <div id="loading-target" data-testid="loading-target">
+            <div class="loading-skeleton" style="width: 80%; margin-bottom: 8px;"></div>
+            <div class="loading-skeleton" style="width: 60%;"></div>
+          </div>
+          <div class="error-banner" id="error-target" data-testid="error-target">
+            <strong>错误：</strong>
+            <span>无法加载数据，请稍后重试</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>V0.4 标尺测距验收目标</h2>
+        <p>用于验证元素尺寸、距视口/父容器距离、双元素测距的样本元素。</p>
+        <div class="ruler-targets">
+          <div class="ruler-row">
+            <button class="ruler-button-a" id="ruler-a" data-testid="ruler-a">A 按钮</button>
+            <button class="ruler-button-b" id="ruler-b" data-testid="ruler-b">B 按钮</button>
+          </div>
+          <p class="ruler-hint">提示：A 和 B 之间水平距离应为 24px（gap 设置）。</p>
+
+          <div class="ruler-container" id="ruler-container">
+            <div class="ruler-child" id="ruler-child" data-testid="ruler-child">
+              选中我，查看距父容器 padding=40px
+            </div>
+          </div>
+          <p class="ruler-hint">提示：子元素距父容器四边 padding=40px，宽度=200px。</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>V0.5 共享元素验收目标</h2>
+        <p>选择任一同类目标，验证相似元素计数、批量高亮、批量记录与 Prompt 作用范围。</p>
+        <div class="shared-grid">
+          <article class="shared-card"><h3>套餐 A</h3><p>共享卡片目标</p></article>
+          <article class="shared-card"><h3>套餐 B</h3><p>共享卡片目标</p></article>
+          <article class="shared-card"><h3>套餐 C</h3><p>共享卡片目标</p></article>
+          <article class="shared-card"><h3>套餐 D</h3><p>共享卡片目标</p></article>
+        </div>
+        <div class="shared-actions">
+          <button class="shared-btn btn-primary">立即创建</button>
+          <button class="shared-btn btn-primary">立即升级</button>
+          <button class="shared-btn btn-primary">立即续费</button>
+          <button class="unique-control">单独咨询</button>
+        </div>
+        <ul class="shared-list">
+          <li class="shared-item">列表目标一</li>
+          <li class="shared-item">列表目标二</li>
+          <li class="shared-item">列表目标三</li>
+          <li class="shared-item">列表目标四</li>
+          <li class="shared-item">列表目标五</li>
+        </ul>
       </section>
 
       <section>

@@ -1,5 +1,8 @@
+import type { ChangeEvent } from "react";
 import { FONT_WEIGHT_OPTIONS } from "../../content/style-inspector";
-import type { StyleDraft, StylePropertyName, StylePropertySnapshot } from "../../shared/types";
+import type { StyleDraft, StylePropertyName, StylePropertySnapshot, StyleUnit } from "../../shared/types";
+import { InspectorSection } from "./InspectorSection";
+import { convertLengthValue, getLengthUnitOptions, normalizeLengthValue, splitLengthValue } from "./style-length";
 
 type StyleEditorPanelProps = {
   supported: boolean;
@@ -12,35 +15,24 @@ type StyleEditorPanelProps = {
 
 type StyleGroup = {
   title: string;
+  open: boolean;
   properties: StylePropertyName[];
 };
 
 const STYLE_GROUPS: StyleGroup[] = [
-  { title: "颜色", properties: ["color", "backgroundColor"] },
-  { title: "排版", properties: ["fontSize", "fontWeight", "lineHeight"] },
-  { title: "内边距", properties: ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"] },
-  { title: "外边距", properties: ["marginTop", "marginRight", "marginBottom", "marginLeft"] },
-  { title: "边框与形状", properties: ["borderRadius", "borderWidth", "borderColor"] },
-  { title: "阴影", properties: ["boxShadow"] }
+  { title: "外观", open: true, properties: ["color", "backgroundColor", "borderRadius"] },
+  { title: "排版", open: true, properties: ["fontSize", "fontWeight", "lineHeight"] },
+  { title: "间距", open: false, properties: ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "marginTop", "marginRight", "marginBottom", "marginLeft"] },
+  { title: "描边与效果", open: false, properties: ["borderWidth", "borderColor", "boxShadow"] },
 ];
 
 export function StyleEditorPanel({ supported, snapshot, draft, hasSelection, onChange, onReset }: StyleEditorPanelProps) {
   if (!hasSelection) {
-    return (
-      <section className="wvaie-section">
-        <h2>样式预览</h2>
-        <p className="wvaie-empty">选中元素后可以临时修改基础样式。</p>
-      </section>
-    );
+    return null;
   }
 
   if (!supported || snapshot.length === 0) {
-    return (
-      <section className="wvaie-section">
-        <h2>样式预览</h2>
-        <p className="wvaie-empty">该元素暂不支持样式预览。</p>
-      </section>
-    );
+    return <InspectorSection as="section"><p className="wvaie-inline-empty">该元素暂不支持样式预览。</p></InspectorSection>;
   }
 
   const hasDraft = Object.values(draft).some((value) => typeof value === "string" && value.length > 0);
@@ -48,37 +40,33 @@ export function StyleEditorPanel({ supported, snapshot, draft, hasSelection, onC
   snapshot.forEach((item) => snapshotMap.set(item.property, item));
 
   return (
-    <section className="wvaie-section">
-      <h2>样式预览</h2>
-      <div className="wvaie-style-grid">
-        {STYLE_GROUPS.map((group) => (
-          <div className="wvaie-style-grid" key={group.title}>
-            <p className="wvaie-style-group-title">{group.title}</p>
+    <InspectorSection as="section" className="wvaie-style-editor">
+      <h2 className="wvaie-card-title">样式编辑</h2>
+      {STYLE_GROUPS.map((group) => (
+        <details className="wvaie-control-group" key={group.title} open={group.open}>
+          <summary>{group.title}</summary>
+          <div className="wvaie-style-grid">
             {group.properties.map((property) => {
               const item = snapshotMap.get(property);
-
-              if (!item) {
-                return null;
-              }
-
-              return (
+              return item ? (
                 <StyleControlRow
                   draftValue={draft[property]}
                   key={property}
                   onChange={onChange}
                   snapshot={item}
                 />
-              );
+              ) : null;
             })}
           </div>
-        ))}
-      </div>
-      <div className="wvaie-actions">
-        <button className="wvaie-button" disabled={!hasDraft} onClick={onReset} type="button">
-          重置当前预览
-        </button>
-      </div>
-    </section>
+        </details>
+      ))}
+      {hasDraft && (
+        <div className="wvaie-preview-banner" role="status">
+          <span>临时预览尚未记录</span>
+          <button className="wvaie-button" onClick={onReset} type="button">重置</button>
+        </div>
+      )}
+    </InspectorSection>
   );
 }
 
@@ -109,7 +97,7 @@ function renderControl(
     return (
       <div className="wvaie-style-color">
         <input
-          aria-label={`${snapshot.label} 取色器`}
+          aria-label={`${snapshot.label}取色器`}
           onChange={(event) => onChange(snapshot.property, event.target.value)}
           type="color"
           value={toColorInputValue(value)}
@@ -133,23 +121,18 @@ function renderControl(
         onChange={(event) => onChange(snapshot.property, event.target.value)}
         value={value}
       >
-        {FONT_WEIGHT_OPTIONS.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
+        {FONT_WEIGHT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     );
   }
 
   if (snapshot.inputType === "number") {
     return (
-      <input
-        aria-label={snapshot.label}
-        className="wvaie-style-input"
-        onChange={(event) => onChange(snapshot.property, withUnit(event.target.value, snapshot.unit))}
-        placeholder={`${snapshot.value}`}
-        type="text"
+      <LengthControl
+        label={snapshot.label}
+        onChange={(next) => onChange(snapshot.property, next)}
+        unit={snapshot.unit ?? "px"}
+        unitOptions={getLengthUnitOptions(snapshot.unitOptions)}
         value={value}
       />
     );
@@ -168,44 +151,70 @@ function renderControl(
 
 function toColorInputValue(value: string): string {
   const trimmed = value.trim();
-
-  if (/^#([0-9a-fA-F]{6})$/.test(trimmed)) {
-    return trimmed;
-  }
-
+  if (/^#([0-9a-fA-F]{6})$/.test(trimmed)) return trimmed;
   const rgb = trimmed.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-
-  if (rgb) {
-    const [, r, g, b] = rgb;
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-  }
-
-  return "#000000";
+  return rgb ? `#${toHex(rgb[1])}${toHex(rgb[2])}${toHex(rgb[3])}` : "#000000";
 }
 
 function toHex(value: string): string {
-  const hex = Number(value).toString(16).padStart(2, "0");
-  return hex.length === 2 ? hex : `0${hex}`;
+  return Number(value).toString(16).padStart(2, "0");
 }
 
-function withUnit(value: string, unit?: "px"): string {
-  const trimmed = value.trim();
+function LengthControl({
+  label,
+  value,
+  unit,
+  unitOptions,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  unit: StyleUnit;
+  unitOptions: readonly StyleUnit[];
+  onChange(next: string): void;
+}) {
+  const { numericText, unit: currentUnit } = splitLengthValue(value, unit);
+  const displayUnit = unitOptions.includes(currentUnit) ? currentUnit : unitOptions[0] ?? unit;
 
-  if (!trimmed) {
-    return "";
+  function handleValueChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextValue = event.target.value;
+    const trimmed = nextValue.trim();
+
+    if (!trimmed) {
+      onChange(`0${displayUnit}`);
+      return;
+    }
+
+    onChange(normalizeLengthValue(nextValue, displayUnit));
   }
 
-  if (!unit) {
-    return trimmed;
+  function handleUnitChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextUnit = event.target.value as StyleUnit;
+    onChange(convertLengthValue(value, nextUnit, displayUnit));
   }
 
-  if (trimmed.endsWith(unit)) {
-    return trimmed;
-  }
-
-  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-    return `${trimmed}${unit}`;
-  }
-
-  return trimmed;
+  return (
+    <div className="wvaie-style-length">
+      <input
+        aria-label={`${label}数值`}
+        className="wvaie-style-length-input"
+        inputMode="decimal"
+        onChange={handleValueChange}
+        type="text"
+        value={numericText}
+      />
+      <select
+        aria-label={`${label}单位`}
+        className="wvaie-style-length-unit"
+        onChange={handleUnitChange}
+        value={displayUnit}
+      >
+        {unitOptions.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 }
