@@ -12,9 +12,11 @@ type StylePropertyDefinition = {
 export const STYLE_PROPERTY_DEFINITIONS: StylePropertyDefinition[] = [
   { property: "color", label: "文本颜色", inputType: "color" },
   { property: "backgroundColor", label: "背景色", inputType: "color" },
+  { property: "fontFamily", label: "字体", inputType: "text" },
   { property: "fontSize", label: "字号", inputType: "number", unit: "px", unitOptions: [...LENGTH_UNIT_OPTIONS] },
   { property: "fontWeight", label: "字重", inputType: "select" },
   { property: "lineHeight", label: "行高", inputType: "number", unit: "px", unitOptions: [...LENGTH_UNIT_OPTIONS] },
+  { property: "letterSpacing", label: "字间距", inputType: "text" },
   { property: "paddingTop", label: "内边距 上", inputType: "number", unit: "px", unitOptions: [...LENGTH_UNIT_OPTIONS] },
   { property: "paddingRight", label: "内边距 右", inputType: "number", unit: "px", unitOptions: [...LENGTH_UNIT_OPTIONS] },
   { property: "paddingBottom", label: "内边距 下", inputType: "number", unit: "px", unitOptions: [...LENGTH_UNIT_OPTIONS] },

@@ -27,10 +27,10 @@ describe("style-inspector", () => {
     );
   });
 
-  it("reads computed values for color, fontSize, fontWeight, and borderRadius", () => {
+  it("reads computed values for color, font family, fontSize, fontWeight, letterSpacing, and borderRadius", () => {
     const target = renderElement(
       `<button>Save</button>`,
-      "color: rgb(255, 0, 0); font-size: 18px; font-weight: 600; border-radius: 8px;"
+      "color: rgb(255, 0, 0); font-family: Arial, sans-serif; font-size: 18px; font-weight: 600; letter-spacing: 0.4px; border-radius: 8px;"
     );
 
     const snapshot = readStyleSnapshot(target);
@@ -38,14 +38,18 @@ describe("style-inspector", () => {
     expect(snapshot).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ property: "color", label: "文本颜色", value: "rgb(255, 0, 0)", inputType: "color" }),
+        expect.objectContaining({ property: "fontFamily", label: "字体", inputType: "text" }),
         expect.objectContaining({ property: "fontSize", label: "字号", inputType: "number", unit: "px", unitOptions: LENGTH_UNIT_OPTIONS }),
         expect.objectContaining({ property: "fontWeight", label: "字重", inputType: "select" }),
+        expect.objectContaining({ property: "letterSpacing", label: "字间距", inputType: "text" }),
         expect.objectContaining({ property: "borderRadius", label: "圆角", inputType: "number", unit: "px", unitOptions: LENGTH_UNIT_OPTIONS })
       ])
     );
 
     const fontSize = snapshot.find((item) => item.property === "fontSize");
     expect(fontSize?.value).toBe("18px");
+    const letterSpacing = snapshot.find((item) => item.property === "letterSpacing");
+    expect(letterSpacing?.value).toBe("0.4px");
   });
 
   it("returns an empty list for non-HTMLElement nodes", () => {

@@ -9,6 +9,8 @@ import { ConfirmDialog } from "./components/ConfirmDialog";
 import { MeasurementPanel, type MeasurementMode } from "./components/MeasurementPanel";
 import { SimilarElementsPanel } from "./components/SimilarElementsPanel";
 import { PageCommentPanel } from "./components/PageCommentPanel";
+import { LayoutPanel } from "./components/LayoutPanel";
+import { QuickCommentPopover, type QuickCommentTarget } from "./components/QuickCommentPopover";
 import type {
   EditRecord,
   ElementSnapshot,
@@ -20,6 +22,7 @@ import type {
   Measurements,
   MatchLevel,
   RecordRangeFilter,
+  LayoutContext,
 } from "../shared/types";
 import type { PanelHandlers } from "./panel-root";
 
@@ -49,6 +52,8 @@ export type PanelState = {
   similarTruncated: boolean;
   similarElements: ElementSnapshot[];
   applyToSimilar: boolean;
+  layoutContext: LayoutContext | null;
+  quickCommentTarget: QuickCommentTarget | null;
 };
 
 type AppProps = {
@@ -63,6 +68,8 @@ export function App({ handlers, state }: AppProps) {
     (value) => typeof value === "string" && value.length > 0
   );
   const isMeasuring = state.interactionMode === "measure";
+  const isAutoLayout = state.interactionMode === "auto-layout";
+  const isCommenting = state.interactionMode === "comment";
 
   function handleDeleteConfirm() {
     if (deleteTarget) {
@@ -88,11 +95,11 @@ export function App({ handlers, state }: AppProps) {
   return (
     <>
       <FloatingToolbar
-        exportDisabled={state.records.length === 0}
         interactionMode={state.interactionMode}
+        onAutoLayout={handlers.onAutoLayoutMode}
         onBrowse={handlers.onBrowseMode}
+        onCommentMode={handlers.onCommentMode}
         onClose={handlers.onClose}
-        onExport={handlers.onShowRecords}
         onMeasure={handlers.onEnterMeasurementMode}
         onSelectElement={handlers.onSelectMode}
         onShowRecords={handlers.onShowRecords}
@@ -103,9 +110,11 @@ export function App({ handlers, state }: AppProps) {
         <header className="wvaie-header" title="拖动标题栏移动面板">
           <div>
             <h1 className="wvaie-header-title">Web Visual AI Editor</h1>
-            <p className="wvaie-header-mode">{isMeasuring ? "测距模式" : "Inspector"}</p>
+            <p className="wvaie-header-mode">
+              {isMeasuring ? "测距模式" : isAutoLayout ? "Auto Layout" : isCommenting ? "Comment" : "Inspector"}
+            </p>
           </div>
-          <span className="wvaie-header-version">V0.5.5</span>
+          <span className="wvaie-header-version">V0.8</span>
         </header>
         <nav className="wvaie-panel-tabs" aria-label="面板页面">
           <button
@@ -162,14 +171,21 @@ export function App({ handlers, state }: AppProps) {
               {hasSelection && state.editingRecord?.scope !== "page" && (
                 <SimilarElementsPanel
                   matchLevel={state.similarMatchLevel}
+                  applyToSimilar={state.applyToSimilar}
                   onHighlightAll={handlers.onHighlightAllSimilar}
                   onHoverSimilar={handlers.onHoverSimilar}
+                  onToggleApplyToSimilar={handlers.onToggleApplyToSimilar}
                   primaryFeature={state.similarPrimaryFeature}
                   similar={state.similarElements}
                   totalMatched={state.similarTotalMatched}
                   truncated={state.similarTruncated}
                 />
               )}
+              <LayoutPanel
+                context={state.layoutContext}
+                hasSelection={hasSelection}
+                onSave={handlers.onSaveLayoutIntent}
+              />
               {isMeasuring ? (
                 <MeasurementPanel
                   hasSelection={hasSelection}
@@ -220,6 +236,13 @@ export function App({ handlers, state }: AppProps) {
           />
         )}
       </main>
+      {state.quickCommentTarget && (
+        <QuickCommentPopover
+          target={state.quickCommentTarget}
+          onCancel={handlers.onCancelQuickComment}
+          onSave={handlers.onSaveQuickComment}
+        />
+      )}
     </>
   );
 }

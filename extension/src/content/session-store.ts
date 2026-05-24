@@ -9,6 +9,7 @@ import type {
   EditorSession,
   EditorSessionExport,
   ElementSnapshot,
+  FontChange,
   PageInfo,
   StyleChange,
   RecordMetadata,
@@ -18,13 +19,18 @@ import type {
   RecordCategory,
   RecordPriority,
   InteractionState,
-  RecordScope
+  RecordScope,
+  LayoutContext,
+  LayoutIntent
 } from "../shared/types";
 import { isStyleUnit } from "../shared/style-units";
+import { deriveFontChanges, isFontPropertyName } from "../shared/font-changes";
 
 type RuntimeOptions = {
   idFactory?: () => string;
   now?: () => string;
+  layoutContext?: LayoutContext | null;
+  layoutIntent?: LayoutIntent | null;
 };
 
 type ParseEditorSessionResult =
@@ -41,7 +47,7 @@ export function createInitialSession(options: RuntimeOptions = {}): EditorSessio
   const now = readNow(options);
 
   return {
-    version: "0.5",
+    version: "0.8",
     sessionId: readId(options),
     page: readPageInfo(),
     createdAt: now,
@@ -63,6 +69,7 @@ export function addEditRecord(
   const trimmedComment = comment.trim();
   const isPageScope = metadata.scope === "page";
   const scopedStyleChanges = isPageScope ? [] : styleChanges;
+  const fontChanges = isPageScope ? [] : deriveFontChanges(scopedStyleChanges);
 
   if (!trimmedComment && scopedStyleChanges.length === 0) {
     return session;
@@ -87,8 +94,11 @@ export function addEditRecord(
         createdAt: now,
         updatedAt: now,
         styleChanges: scopedStyleChanges,
+        fontChanges,
         measurements: isPageScope ? null : measurements,
-        sharedGroup: isPageScope ? null : sharedGroup
+        sharedGroup: isPageScope ? null : sharedGroup,
+        layoutContext: isPageScope ? null : options.layoutContext ?? null,
+        layoutIntent: isPageScope ? null : options.layoutIntent ?? null
       }
     ]
   };
@@ -122,8 +132,13 @@ export function updateEditRecord(
     interactionState: isPageScope ? null : metadata.interactionState,
     scope: metadata.scope,
     styleChanges: isPageScope ? [] : updatedRecords[recordIndex].styleChanges,
+    fontChanges: isPageScope
+      ? []
+      : updatedRecords[recordIndex].fontChanges ?? deriveFontChanges(updatedRecords[recordIndex].styleChanges),
     measurements: isPageScope ? null : measurements,
     sharedGroup: isPageScope ? null : sharedGroup,
+    layoutContext: isPageScope ? null : options.layoutContext ?? updatedRecords[recordIndex].layoutContext ?? null,
+    layoutIntent: isPageScope ? null : options.layoutIntent ?? updatedRecords[recordIndex].layoutIntent ?? null,
     updatedAt: now
   };
 
@@ -247,7 +262,7 @@ export function parseEditorSessionExport(value: string, options: RuntimeOptions 
   return {
     ok: true,
     session: {
-      version: "0.5",
+      version: "0.8",
       sessionId: readId(options),
       page: parsed.page,
       createdAt: now,
@@ -263,6 +278,13 @@ function normalizeImportedRecord(value: Record<string, unknown>, version: string
   const element = isPageScope ? null : (value.element as ElementSnapshot | null);
   const rawStyleChanges = Array.isArray(value.styleChanges) ? value.styleChanges : [];
   const styleChanges = isPageScope ? [] : rawStyleChanges.filter(isStyleChangeLike).map((change) => ({ ...change }));
+  const rawFontChanges = Array.isArray(value.fontChanges) ? value.fontChanges : [];
+  const fontChanges =
+    isPageScope
+      ? []
+      : version === "0.7" || version === "0.8"
+        ? rawFontChanges.filter(isFontChangeLike).map((change) => ({ ...change }))
+        : deriveFontChanges(styleChanges);
 
   // V0.3 fields with fallback to defaults for V0.1/V0.2
   const category: RecordCategory =
@@ -298,10 +320,25 @@ function normalizeImportedRecord(value: Record<string, unknown>, version: string
 
   // V0.4: measurements (null for V0.1/V0.2/V0.3)
   const measurements = scope === "element" && isMeasurementsLike(value.measurements) ? value.measurements : null;
-  // V0.5: only V0.5 payloads may carry a persisted shared selection scope.
+  // V0.5+: only V0.5+ payloads may carry a persisted shared selection scope.
   const sharedGroup =
-    scope === "element" && element && version === "0.5" && isSharedGroupLike(value.sharedGroup)
+    scope === "element" &&
+    element &&
+    (version === "0.5" || version === "0.6" || version === "0.7" || version === "0.8") &&
+    isSharedGroupLike(value.sharedGroup)
       ? value.sharedGroup
+      : null;
+  const layoutContext =
+    scope === "element" &&
+    (version === "0.6" || version === "0.7" || version === "0.8") &&
+    isLayoutContextLike(value.layoutContext)
+      ? value.layoutContext
+      : null;
+  const layoutIntent =
+    scope === "element" &&
+    (version === "0.6" || version === "0.7" || version === "0.8") &&
+    isLayoutIntentLike(value.layoutIntent)
+      ? value.layoutIntent
       : null;
 
   return {
@@ -316,8 +353,11 @@ function normalizeImportedRecord(value: Record<string, unknown>, version: string
     createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString(),
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString(),
     styleChanges,
+    fontChanges,
     measurements,
-    sharedGroup
+    sharedGroup,
+    layoutContext,
+    layoutIntent
   };
 }
 
@@ -386,6 +426,10 @@ function isStyleChangeLike(value: unknown): value is StyleChange {
   );
 }
 
+function isFontChangeLike(value: unknown): value is FontChange {
+  return isStyleChangeLike(value) && isFontPropertyName(value.property);
+}
+
 function isMeasurementsLike(value: unknown): value is Measurements {
   if (!isObject(value)) {
     return false;
@@ -413,6 +457,43 @@ function isSharedGroupLike(value: unknown): value is SharedGroup {
     typeof value.truncated === "boolean" &&
     Array.isArray(value.targets) &&
     value.targets.every(isElementSnapshotLike)
+  );
+}
+
+function isLayoutContextLike(value: unknown): value is LayoutContext {
+  return (
+    isObject(value) &&
+    typeof value.parentSelector === "string" &&
+    typeof value.parentTagName === "string" &&
+    (value.display === "flex" ||
+      value.display === "inline-flex" ||
+      value.display === "grid" ||
+      value.display === "inline-grid" ||
+      value.display === "block" ||
+      value.display === "inline" ||
+      value.display === "other") &&
+    (typeof value.flexDirection === "string" || value.flexDirection === null) &&
+    (typeof value.justifyContent === "string" || value.justifyContent === null) &&
+    (typeof value.alignItems === "string" || value.alignItems === null) &&
+    isObject(value.gap) &&
+    typeof value.gap.row === "string" &&
+    typeof value.gap.column === "string" &&
+    typeof value.childIndex === "number" &&
+    typeof value.siblingCount === "number"
+  );
+}
+
+function isLayoutIntentLike(value: unknown): value is LayoutIntent {
+  return (
+    isObject(value) &&
+    (value.direction === "none" || value.direction === "horizontal" || value.direction === "vertical") &&
+    (value.alignment === "none" ||
+      value.alignment === "start" ||
+      value.alignment === "center" ||
+      value.alignment === "end" ||
+      value.alignment === "space-between") &&
+    typeof value.gap === "string" &&
+    typeof value.note === "string"
   );
 }
 

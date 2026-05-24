@@ -1,6 +1,14 @@
 import { createRoot, type Root } from "react-dom/client";
 import { App, type PanelState } from "./App";
-import type { EditRecord, StylePropertyName, RecordMetadata, RecordStatus, RecordCategory, RecordRangeFilter } from "../shared/types";
+import type {
+  EditRecord,
+  StylePropertyName,
+  RecordMetadata,
+  RecordStatus,
+  RecordCategory,
+  RecordRangeFilter,
+  LayoutIntent
+} from "../shared/types";
 
 export type PanelController = {
   update(input: PanelState): void;
@@ -9,7 +17,10 @@ export type PanelController = {
 
 export type PanelHandlers = {
   onSaveComment(comment: string, metadata: RecordMetadata): void;
+  onSaveQuickComment(comment: string, metadata: RecordMetadata): void;
+  onCancelQuickComment(): void;
   onSavePageComment(comment: string, metadata: RecordMetadata): void;
+  onSaveLayoutIntent(intent: LayoutIntent): void;
   onLocateRecord(record: EditRecord): void;
   onEditRecord(record: EditRecord): void;
   onDeleteRecord(record: EditRecord): void;
@@ -27,6 +38,8 @@ export type PanelHandlers = {
   onStyleDraftChange(property: StylePropertyName, value: string): void;
   onResetStylePreview(): void;
   onEnterMeasurementMode(): void;
+  onAutoLayoutMode(): void;
+  onCommentMode(): void;
   onExitMeasurementMode(): void;
   onResetPairMeasurement(): void;
   onToggleAttachMeasurements(next: boolean): void;
@@ -269,27 +282,28 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       z-index: 2147483646;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       transform: translateX(-50%);
       padding: 6px;
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      background: var(--bg-toolbar);
-      color: var(--text);
-      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 100px;
+      background: rgba(40, 40, 40, 0.9);
+      color: #e8e8e8;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(4px);
       pointer-events: auto;
     }
 
     .wvaie-toolbar-group {
       display: flex;
       align-items: center;
-      gap: 3px;
+      gap: 10px;
     }
 
     .wvaie-toolbar-divider {
       width: 1px;
-      height: 28px;
-      background: var(--border);
+      height: 31px;
+      background: rgba(255, 255, 255, 0.16);
     }
 
     .wvaie-toolbar-button,
@@ -297,27 +311,28 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 4px;
+      width: 38px;
+      height: 38px;
       min-height: 38px;
       border: 1px solid transparent;
-      border-radius: 12px;
+      border-radius: 0 19px 19px;
       background: transparent;
-      color: var(--text-muted);
+      color: #e8e8e8;
       cursor: pointer;
-      font-size: 13px;
-      padding: 0 10px;
-      transition: background 160ms ease-out, color 160ms ease-out, box-shadow 160ms ease-out;
+      font-size: 14px;
+      padding: 9px;
+      transition: background 160ms ease-out, color 160ms ease-out, opacity 160ms ease-out;
     }
 
     .wvaie-icon-button {
       min-width: 38px;
-      padding: 0;
     }
 
     .wvaie-toolbar-button svg,
     .wvaie-icon-button svg {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       fill: none;
       stroke: currentColor;
       stroke-width: 1.65;
@@ -325,21 +340,44 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       stroke-linejoin: round;
     }
 
+    .wvaie-toolbar-button svg .wvaie-toolbar-icon-fill {
+      fill: currentColor;
+      stroke: none;
+    }
+
     .wvaie-toolbar-button:hover:not(:disabled),
     .wvaie-icon-button:hover {
-      background: var(--bg-hover);
-      color: var(--text);
+      border-radius: 19px;
+      background: rgba(80, 80, 80, 0.38);
+      color: #fff;
     }
 
     .wvaie-toolbar-button-active {
-      background: var(--accent-soft);
+      border-radius: 100px;
+      background: rgba(80, 80, 80, 0.6);
       color: #fff;
-      box-shadow: inset 0 0 0 1px rgba(91, 108, 255, 0.72);
+      box-shadow: none;
     }
 
     .wvaie-toolbar-button-active:hover:not(:disabled) {
-      background: var(--accent-fill-hover);
+      background: rgba(80, 80, 80, 0.72);
       color: #fff;
+    }
+
+    .wvaie-toolbar-button-record {
+      width: auto;
+      border-radius: 19px;
+      background: rgba(80, 80, 80, 0.6);
+      padding: 9px;
+    }
+
+    .wvaie-toolbar-label {
+      color: #e8e8e8;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 18px;
+      white-space: nowrap;
     }
 
     .wvaie-toolbar-button:disabled {
@@ -348,17 +386,22 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     }
 
     .wvaie-toolbar-badge {
-      min-width: 17px;
-      border-radius: 9px;
-      padding: 1px 5px;
-      background: var(--bg-hover);
-      color: var(--text);
-      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 19px;
+      min-height: 18px;
+      border-radius: 20px;
+      padding: 0 4px;
+      background: #535dff;
+      color: #e8e8e8;
+      font-size: 12px;
+      line-height: 16px;
       font-variant-numeric: tabular-nums;
     }
 
     .wvaie-toolbar-button-active .wvaie-toolbar-badge {
-      background: rgba(255, 255, 255, 0.22);
+      background: #535dff;
     }
 
     .wvaie-panel {
@@ -592,6 +635,85 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       padding: 16px;
     }
 
+    .wvaie-section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .wvaie-section-heading h2 {
+      margin: 0;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 20px;
+    }
+
+    .wvaie-section-heading span {
+      border-radius: 999px;
+      padding: 2px 7px;
+      background: var(--accent-soft);
+      color: #dfe3ff;
+      font-size: 11px;
+      line-height: 16px;
+    }
+
+    .wvaie-layout-facts {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--bg-field);
+    }
+
+    .wvaie-layout-facts div {
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr);
+      gap: 10px;
+      align-items: baseline;
+    }
+
+    .wvaie-layout-facts dt,
+    .wvaie-layout-facts dd {
+      margin: 0;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .wvaie-layout-facts dt {
+      color: var(--text-dim);
+    }
+
+    .wvaie-layout-facts dd {
+      overflow-wrap: anywhere;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    .wvaie-layout-direct-card {
+      display: grid;
+      gap: 4px;
+      padding: 12px 13px;
+      border: 1px solid rgba(91, 108, 255, 0.24);
+      border-radius: 14px;
+      background: var(--accent-soft);
+    }
+
+    .wvaie-layout-direct-card strong {
+      color: var(--text);
+      font-size: 13px;
+      line-height: 18px;
+    }
+
+    .wvaie-layout-direct-card p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
     .wvaie-element-summary {
       gap: 14px;
     }
@@ -776,6 +898,69 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       color: #bfdbfe;
     }
 
+    .wvaie-shared-switch {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--bg-field);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .wvaie-shared-switch span {
+      display: grid;
+      gap: 2px;
+    }
+
+    .wvaie-shared-switch strong {
+      font-size: 13px;
+      line-height: 18px;
+    }
+
+    .wvaie-shared-switch small {
+      color: var(--text-dim);
+      font-size: 11px;
+      line-height: 16px;
+    }
+
+    .wvaie-shared-switch input {
+      position: relative;
+      flex: none;
+      width: 42px;
+      height: 24px;
+      margin: 0;
+      border: 0;
+      border-radius: 999px;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.18);
+      cursor: pointer;
+      transition: background 160ms ease-out;
+    }
+
+    .wvaie-shared-switch input::before {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      content: "";
+      transition: transform 160ms ease-out;
+    }
+
+    .wvaie-shared-switch input:checked {
+      background: var(--accent-fill);
+    }
+
+    .wvaie-shared-switch input:checked::before {
+      transform: translateX(18px);
+    }
+
     .wvaie-similar-list {
       display: grid;
       gap: 4px;
@@ -951,6 +1136,29 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       background: var(--bg-field);
     }
 
+    .wvaie-font-family-control {
+      display: grid;
+      gap: 8px;
+    }
+
+    .wvaie-font-family-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .wvaie-font-family-row .wvaie-button {
+      min-height: 40px;
+      white-space: nowrap;
+    }
+
+    .wvaie-font-status {
+      margin: 0;
+      color: var(--text-dim);
+      font-size: 11px;
+      line-height: 16px;
+    }
+
     .wvaie-preview-banner {
       display: flex;
       align-items: center;
@@ -1008,6 +1216,108 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       display: flex;
       gap: 8px;
       padding: 2px 0 0;
+    }
+
+    .wvaie-quick-comment {
+      position: fixed;
+      z-index: 2147483646;
+      display: grid;
+      width: 304px;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid rgba(244, 114, 182, 0.42);
+      border-radius: 16px;
+      background: rgba(18, 18, 18, 0.98);
+      color: var(--text);
+      box-shadow:
+        0 24px 68px rgba(0, 0, 0, 0.42),
+        0 0 0 1px rgba(217, 70, 239, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      pointer-events: auto;
+    }
+
+    .wvaie-quick-comment::before {
+      position: absolute;
+      top: 28px;
+      left: -9px;
+      width: 16px;
+      height: 16px;
+      border-bottom: 1px solid rgba(244, 114, 182, 0.42);
+      border-left: 1px solid rgba(244, 114, 182, 0.42);
+      background: rgba(18, 18, 18, 0.98);
+      content: "";
+      transform: rotate(45deg);
+    }
+
+    .wvaie-quick-comment-pin {
+      position: absolute;
+      top: -15px;
+      left: -15px;
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border: 2px solid rgba(255, 255, 255, 0.92);
+      border-radius: 50%;
+      background: #ec35c8;
+      color: #fff;
+      font: 800 15px/1 var(--sans);
+      box-shadow:
+        0 0 0 2px rgba(217, 70, 239, 0.38),
+        0 0 24px rgba(236, 53, 200, 0.52);
+    }
+
+    .wvaie-quick-comment-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .wvaie-quick-comment-head h2,
+    .wvaie-quick-comment-kicker,
+    .wvaie-quick-comment-selector {
+      margin: 0;
+    }
+
+    .wvaie-quick-comment-kicker {
+      color: #f9a8e7;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 16px;
+    }
+
+    .wvaie-quick-comment-head h2 {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 20px;
+      text-transform: uppercase;
+    }
+
+    .wvaie-quick-comment .wvaie-icon-button {
+      min-width: 30px;
+      min-height: 30px;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .wvaie-quick-comment-selector {
+      overflow: hidden;
+      color: var(--text-dim);
+      font: 11px/16px var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .wvaie-quick-comment-textarea {
+      min-height: 82px;
+    }
+
+    .wvaie-quick-comment-meta {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+      gap: 8px;
     }
 
     .wvaie-comment-editor {
@@ -1386,6 +1696,8 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     similarTruncated: false,
     similarElements: [],
     applyToSimilar: false,
+    layoutContext: null,
+    quickCommentTarget: null,
   };
 
   function render(): void {

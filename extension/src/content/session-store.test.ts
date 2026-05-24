@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ElementSnapshot, StyleChange, SharedGroup } from "../shared/types";
+import type { ElementSnapshot, StyleChange, SharedGroup, LayoutContext, LayoutIntent } from "../shared/types";
 import { addEditRecord, createInitialSession, parseEditorSessionExport, serializeEditorSession } from "./session-store";
 import { DEFAULT_RECORD_METADATA } from "../shared/record-metadata";
 
@@ -32,12 +32,41 @@ const lengthChange: StyleChange = {
   unit: "pt"
 };
 
+const fontFamilyChange: StyleChange = {
+  property: "fontFamily",
+  label: "字体",
+  oldValue: "Arial, sans-serif",
+  newValue: "Inter, Arial, sans-serif"
+};
+
 const sharedGroup: SharedGroup = {
   matchLevel: "exact",
   primaryFeature: "button.btn",
   totalMatched: 2,
   truncated: false,
   targets: [{ ...element, id: "cancel", selector: "#cancel", text: "取消" }]
+};
+
+const layoutContext: LayoutContext = {
+  parentSelector: ".toolbar",
+  parentTagName: "DIV",
+  display: "flex",
+  flexDirection: "row",
+  justifyContent: "flex-start",
+  alignItems: "center",
+  gap: {
+    row: "16px",
+    column: "24px"
+  },
+  childIndex: 1,
+  siblingCount: 3
+};
+
+const layoutIntent: LayoutIntent = {
+  direction: "horizontal",
+  alignment: "center",
+  gap: "16px",
+  note: "保持按钮组居中并等距。"
 };
 
 describe("session-store", () => {
@@ -117,10 +146,11 @@ describe("session-store", () => {
     expect(parsed.ok).toBe(true);
     expect(parsed.ok && parsed.session.records[0].comment).toBe("按钮需要更醒目");
     expect(parsed.ok && parsed.session.records[0].styleChanges).toEqual([backgroundChange, lengthChange]);
+    expect(parsed.ok && parsed.session.records[0].fontChanges).toEqual([lengthChange]);
     expect(parsed.ok && parsed.session.records[0].sharedGroup).toEqual(sharedGroup);
   });
 
-  it("exports the V0.5 data format version", () => {
+  it("exports the V0.8 data format version", () => {
     const session = createInitialSession({
       idFactory: () => "session_1",
       now: () => "2026-05-22T00:00:00.000Z"
@@ -129,7 +159,7 @@ describe("session-store", () => {
       now: () => "2026-05-22T00:02:00.000Z"
     });
 
-    expect(JSON.parse(exportedJson).version).toBe("0.5");
+    expect(JSON.parse(exportedJson).version).toBe("0.8");
   });
 
   it("imports V0.1 JSON without style changes for backward compatibility", () => {
@@ -305,7 +335,65 @@ describe("session-store", () => {
     expect(parsed.ok).toBe(true);
     expect(parsed.ok && parsed.session.records[0].measurements).toBe(null);
     expect(parsed.ok && parsed.session.records[0].sharedGroup).toBe(null);
-    expect(parsed.ok && parsed.session.version).toBe("0.5");
+    expect(parsed.ok && parsed.session.version).toBe("0.8");
+  });
+
+  it("round-trips V0.6 layout context and intent", () => {
+    const session = createInitialSession({
+      idFactory: () => "session_layout",
+      now: () => "2026-05-24T00:00:00.000Z"
+    });
+    const updated = addEditRecord(
+      session,
+      element,
+      "布局意图：改为横向排列；居中对齐；目标间距 16px",
+      [],
+      {
+        ...DEFAULT_RECORD_METADATA,
+        category: "layout"
+      },
+      null,
+      null,
+      {
+        idFactory: () => "layout_1",
+        now: () => "2026-05-24T00:01:00.000Z",
+        layoutContext,
+        layoutIntent
+      }
+    );
+
+    const parsed = parseEditorSessionExport(serializeEditorSession(updated));
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ok && parsed.session.records[0].layoutContext).toEqual(layoutContext);
+    expect(parsed.ok && parsed.session.records[0].layoutIntent).toEqual(layoutIntent);
+  });
+
+  it("round-trips V0.7 font changes and derives them from style changes", () => {
+    const session = createInitialSession({
+      idFactory: () => "session_font",
+      now: () => "2026-05-24T00:00:00.000Z"
+    });
+    const updated = addEditRecord(
+      session,
+      element,
+      "标题字体换成 Inter，字号改成 9pt",
+      [backgroundChange, fontFamilyChange, lengthChange],
+      DEFAULT_RECORD_METADATA,
+      null,
+      null,
+      {
+        idFactory: () => "font_1",
+        now: () => "2026-05-24T00:01:00.000Z"
+      }
+    );
+
+    expect(updated.records[0].fontChanges).toEqual([fontFamilyChange, lengthChange]);
+
+    const parsed = parseEditorSessionExport(serializeEditorSession(updated));
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ok && parsed.session.records[0].fontChanges).toEqual([fontFamilyChange, lengthChange]);
   });
 
   it("imports V0.4 JSON with full measurements", () => {
@@ -386,6 +474,47 @@ describe("session-store", () => {
     expect(parsed.ok && parsed.session.records[0].sharedGroup).toEqual(sharedGroup);
   });
 
+  it("imports V0.8 JSON with font changes intact", () => {
+    const v07Payload = {
+      app: "Web Visual AI Editor",
+      version: "0.8",
+      exportedAt: "2026-05-24T00:00:00.000Z",
+      page: {
+        url: "https://example.com",
+        origin: "https://example.com",
+        title: "Example",
+        viewport: { width: 1440, height: 900 }
+      },
+      records: [
+        {
+          id: "font_1",
+          status: "open",
+          comment: "统一标题字体",
+          category: "visual",
+          priority: "medium",
+          interactionState: null,
+          scope: "element",
+          createdAt: "2026-05-24T00:00:00.000Z",
+          updatedAt: "2026-05-24T00:00:00.000Z",
+          element,
+          styleChanges: [fontFamilyChange, lengthChange],
+          fontChanges: [fontFamilyChange, lengthChange],
+          measurements: null,
+          sharedGroup,
+          layoutContext,
+          layoutIntent
+        }
+      ]
+    };
+
+    const parsed = parseEditorSessionExport(JSON.stringify(v07Payload));
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ok && parsed.session.records[0].fontChanges).toEqual([fontFamilyChange, lengthChange]);
+    expect(parsed.ok && parsed.session.records[0].sharedGroup).toEqual(sharedGroup);
+    expect(parsed.ok && parsed.session.records[0].layoutContext).toEqual(layoutContext);
+  });
+
   it("drops element-only fields from imported page-scope records", () => {
     const payload = {
       app: "Web Visual AI Editor",
@@ -426,6 +555,7 @@ describe("session-store", () => {
     expect(parsed.ok && parsed.session.records[0].element).toBe(null);
     expect(parsed.ok && parsed.session.records[0].interactionState).toBe(null);
     expect(parsed.ok && parsed.session.records[0].styleChanges).toEqual([]);
+    expect(parsed.ok && parsed.session.records[0].fontChanges).toEqual([]);
     expect(parsed.ok && parsed.session.records[0].measurements).toBe(null);
     expect(parsed.ok && parsed.session.records[0].sharedGroup).toBe(null);
   });

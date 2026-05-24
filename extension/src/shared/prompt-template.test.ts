@@ -117,6 +117,79 @@ describe("buildAiPrompt", () => {
     expect(prompt).toContain("优先结合现有样式系统");
   });
 
+  it("renders font changes as a dedicated Prompt section", () => {
+    const session: EditorSession = {
+      version: "0.7",
+      sessionId: "session_font",
+      createdAt: "2026-05-24T00:00:00.000Z",
+      updatedAt: "2026-05-24T00:01:00.000Z",
+      page: {
+        url: "https://example.com",
+        origin: "https://example.com",
+        title: "Example",
+        viewport: { width: 1440, height: 900 }
+      },
+      records: [
+        {
+          id: "record_font",
+          status: "open",
+          comment: "标题字体换成 Inter，并稍微增加字间距",
+          category: "visual",
+          priority: "high",
+          interactionState: null,
+          scope: "element",
+          createdAt: "2026-05-24T00:01:00.000Z",
+          updatedAt: "2026-05-24T00:01:00.000Z",
+          element: {
+            tagName: "h1",
+            id: null,
+            className: "hero-title",
+            selector: ".hero-title",
+            text: "Web Visual AI Editor",
+            rect: { x: 0, y: 0, width: 320, height: 64 }
+          },
+          styleChanges: [
+            {
+              property: "fontFamily",
+              label: "字体",
+              oldValue: "Arial, sans-serif",
+              newValue: "Inter, Arial, sans-serif"
+            },
+            {
+              property: "letterSpacing",
+              label: "字间距",
+              oldValue: "normal",
+              newValue: "0.4px"
+            }
+          ],
+          fontChanges: [
+            {
+              property: "fontFamily",
+              label: "字体",
+              oldValue: "Arial, sans-serif",
+              newValue: "Inter, Arial, sans-serif"
+            },
+            {
+              property: "letterSpacing",
+              label: "字间距",
+              oldValue: "normal",
+              newValue: "0.4px"
+            }
+          ],
+          measurements: null,
+          sharedGroup: null
+        }
+      ]
+    };
+
+    const prompt = buildAiPrompt(session);
+
+    expect(prompt).toContain("字体修改：");
+    expect(prompt).toContain("字体（fontFamily）: Arial, sans-serif -> Inter, Arial, sans-serif");
+    expect(prompt).toContain("字间距（letterSpacing）: normal -> 0.4px");
+    expect(prompt).not.toContain("- fontFamily: Arial, sans-serif -> Inter, Arial, sans-serif");
+  });
+
   it("groups records by category and sorts by priority", () => {
     const session: EditorSession = {
       version: "0.4",
@@ -454,6 +527,71 @@ describe("buildAiPrompt", () => {
     expect(prompt).toContain("距视口");
     expect(prompt).not.toContain("距父容器");
     expect(prompt).not.toContain("与目标元素");
+  });
+
+  it("includes layout context and intent for V0.6 layout records", () => {
+    const session: EditorSession = {
+      version: "0.6",
+      sessionId: "session_layout",
+      createdAt: "2026-05-24T00:00:00.000Z",
+      updatedAt: "2026-05-24T00:01:00.000Z",
+      page: {
+        url: "https://example.com",
+        origin: "https://example.com",
+        title: "Example",
+        viewport: { width: 1440, height: 900 }
+      },
+      records: [
+        {
+          id: "layout_1",
+          status: "open",
+          comment: "布局意图：改为横向排列；居中对齐；目标间距 16px",
+          category: "layout",
+          priority: "medium",
+          interactionState: null,
+          scope: "element",
+          createdAt: "2026-05-24T00:01:00.000Z",
+          updatedAt: "2026-05-24T00:01:00.000Z",
+          element: {
+            tagName: "button",
+            id: "submit",
+            className: "btn",
+            selector: "#submit",
+            text: "提交",
+            rect: { x: 100, y: 200, width: 80, height: 32 }
+          },
+          styleChanges: [],
+          measurements: null,
+          sharedGroup: null,
+          layoutContext: {
+            parentSelector: ".toolbar",
+            parentTagName: "DIV",
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "flex-start",
+            alignItems: "center",
+            gap: { row: "16px", column: "24px" },
+            childIndex: 1,
+            siblingCount: 3
+          },
+          layoutIntent: {
+            direction: "horizontal",
+            alignment: "center",
+            gap: "16px",
+            note: "保持按钮组居中并等距。"
+          }
+        }
+      ]
+    };
+
+    const prompt = buildAiPrompt(session);
+
+    expect(prompt).toContain("布局辅助：");
+    expect(prompt).toContain("父容器：.toolbar");
+    expect(prompt).toContain("当前布局：direction row");
+    expect(prompt).toContain("目标方向：横向");
+    expect(prompt).toContain("目标对齐：居中对齐");
+    expect(prompt).toContain("目标间距：16px");
   });
 
   it("describes shared scope and truncation for batch records", () => {

@@ -1,5 +1,5 @@
 export type EditorSession = {
-  version: "0.4" | "0.5";
+  version: "0.4" | "0.5" | "0.6" | "0.7" | "0.8";
   sessionId: string;
   page: PageInfo;
   createdAt: string;
@@ -34,9 +34,11 @@ export type ElementSnapshot = {
 export type StylePropertyName =
   | "color"
   | "backgroundColor"
+  | "fontFamily"
   | "fontSize"
   | "fontWeight"
   | "lineHeight"
+  | "letterSpacing"
   | "paddingTop"
   | "paddingRight"
   | "paddingBottom"
@@ -72,6 +74,21 @@ export type StyleChange = {
 };
 
 export type StyleDraft = Partial<Record<StylePropertyName, string>>;
+
+export type FontPropertyName =
+  | "fontFamily"
+  | "fontSize"
+  | "fontWeight"
+  | "lineHeight"
+  | "letterSpacing";
+
+export type FontChange = {
+  property: FontPropertyName;
+  label: string;
+  oldValue: string;
+  newValue: string;
+  unit?: StyleUnit;
+};
 
 export type RecordCategory = "visual" | "copy" | "interaction" | "layout" | "data" | "state";
 
@@ -120,6 +137,30 @@ export type SharedGroup = {
   targets: ElementSnapshot[];
 };
 
+export type LayoutDisplay = "flex" | "inline-flex" | "grid" | "inline-grid" | "block" | "inline" | "other";
+
+export type LayoutContext = {
+  parentSelector: string;
+  parentTagName: string;
+  display: LayoutDisplay;
+  flexDirection: string | null;
+  justifyContent: string | null;
+  alignItems: string | null;
+  gap: {
+    row: string;
+    column: string;
+  };
+  childIndex: number;
+  siblingCount: number;
+};
+
+export type LayoutIntent = {
+  direction: "none" | "horizontal" | "vertical";
+  alignment: "none" | "start" | "center" | "end" | "space-between";
+  gap: string;
+  note: string;
+};
+
 export type EditRecord = {
   id: string;
   element: ElementSnapshot | null;
@@ -132,13 +173,16 @@ export type EditRecord = {
   createdAt: string;
   updatedAt: string;
   styleChanges: StyleChange[];
+  fontChanges?: FontChange[];
   measurements: Measurements | null;
   sharedGroup: SharedGroup | null;
+  layoutContext?: LayoutContext | null;
+  layoutIntent?: LayoutIntent | null;
 };
 
 export type EditorSessionExport = {
   app: "Web Visual AI Editor";
-  version: "0.1" | "0.2" | "0.3" | "0.4" | "0.5";
+  version: "0.1" | "0.2" | "0.3" | "0.4" | "0.5" | "0.6" | "0.7" | "0.8";
   exportedAt: string;
   page: PageInfo;
   records: EditRecord[];

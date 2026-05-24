@@ -1,4 +1,15 @@
-import type { EditRecord, EditorSession, StyleChange, RecordCategory, Measurements, ElementSnapshot, SharedGroup } from "./types";
+import type {
+  EditRecord,
+  EditorSession,
+  StyleChange,
+  RecordCategory,
+  Measurements,
+  ElementSnapshot,
+  SharedGroup,
+  LayoutContext,
+  LayoutIntent
+} from "./types";
+import { deriveFontChanges, isFontPropertyName } from "./font-changes";
 import {
   formatRecordCategory,
   formatRecordPriority,
@@ -107,15 +118,29 @@ function formatRecord(record: EditRecord, index: number): string {
     lines.push(...formatSharedGroup(element, record.sharedGroup));
   }
 
-  if (record.styleChanges.length > 0) {
+  const fontChanges = record.fontChanges?.length ? record.fontChanges : deriveFontChanges(record.styleChanges);
+  const styleChanges = record.styleChanges.filter((change) => !isFontPropertyName(change.property));
+
+  if (fontChanges.length > 0) {
+    lines.push("- 字体修改：");
+    for (const change of fontChanges) {
+      lines.push(`  - ${formatFontChange(change)}`);
+    }
+  }
+
+  if (styleChanges.length > 0) {
     lines.push("- 样式修改：");
-    for (const change of record.styleChanges) {
+    for (const change of styleChanges) {
       lines.push(`  - ${formatStyleChange(change)}`);
     }
   }
 
   if (record.measurements) {
     lines.push(...formatMeasurements(record.measurements));
+  }
+
+  if (record.layoutContext || record.layoutIntent) {
+    lines.push(...formatLayout(record.layoutContext ?? null, record.layoutIntent ?? null));
   }
 
   lines.push("");
@@ -125,11 +150,35 @@ function formatRecord(record: EditRecord, index: number): string {
       : "请根据页面整体情况实现此建议。"
   );
 
-  if (record.styleChanges.length > 0) {
+  if (record.styleChanges.length > 0 || fontChanges.length > 0) {
     lines.push("注意：处理样式时请优先结合现有样式系统实现。");
   }
 
   return lines.join("\n");
+}
+
+function formatLayout(context: LayoutContext | null, intent: LayoutIntent | null): string[] {
+  const lines = ["- 布局辅助："];
+
+  if (context) {
+    lines.push(
+      `  - 父容器：${context.parentSelector}（${context.parentTagName}，display: ${context.display}）`,
+      `  - 当前布局：direction ${context.flexDirection || "未指定"} / justify ${context.justifyContent || "未指定"} / align ${context.alignItems || "未指定"}`,
+      `  - 当前间距：row ${context.gap.row} / column ${context.gap.column}`,
+      `  - 当前子元素位置：第 ${context.childIndex + 1} 个 / 共 ${context.siblingCount} 个`
+    );
+  }
+
+  if (intent) {
+    lines.push(
+      `  - 目标方向：${formatLayoutDirection(intent.direction)}`,
+      `  - 目标对齐：${formatLayoutAlignment(intent.alignment)}`,
+      `  - 目标间距：${intent.gap || "未指定"}`,
+      `  - 补充说明：${intent.note || "无"}`
+    );
+  }
+
+  return lines;
 }
 
 function formatMeasurements(m: Measurements): string[] {
@@ -153,6 +202,20 @@ function formatMeasurements(m: Measurements): string[] {
   }
 
   return lines;
+}
+
+function formatLayoutDirection(value: LayoutIntent["direction"]): string {
+  if (value === "horizontal") return "横向";
+  if (value === "vertical") return "纵向";
+  return "未指定";
+}
+
+function formatLayoutAlignment(value: LayoutIntent["alignment"]): string {
+  if (value === "start") return "起点对齐";
+  if (value === "center") return "居中对齐";
+  if (value === "end") return "终点对齐";
+  if (value === "space-between") return "两端等距";
+  return "未指定";
 }
 
 function formatSharedGroup(element: ElementSnapshot, group: SharedGroup): string[] {
@@ -183,4 +246,8 @@ function formatSharedGroup(element: ElementSnapshot, group: SharedGroup): string
 
 function formatStyleChange(change: StyleChange): string {
   return `${change.property}: ${change.oldValue || "空"} -> ${change.newValue || "空"}`;
+}
+
+function formatFontChange(change: StyleChange): string {
+  return `${change.label}（${change.property}）: ${change.oldValue || "空"} -> ${change.newValue || "空"}`;
 }

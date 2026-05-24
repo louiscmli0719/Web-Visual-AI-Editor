@@ -2,12 +2,12 @@
 
 ## 1. 当前阶段
 
-当前阶段：V0.1 已通过用户手动验收；V0.2 样式编辑器与 V0.3 评论增强已通过 Chrome 手动验收。V0.4 标尺测距、V0.5 共享元素与 V0.5.5 UI Refresh 代码实现已完成，并补充 Panel 标题栏自由拖动交互；`npm run verify` 已通过，`v0.5.5-beta.1` GitHub Release 作为可安装预览包发布，等待 Chrome 手动验收。
+当前阶段：V0.1 已通过用户手动验收；V0.2 样式编辑器与 V0.3 评论增强已通过 Chrome 手动验收。V0.4 标尺测距、V0.5 共享元素与 V0.5.5 UI Refresh 代码实现已完成；V0.6 自动布局辅助、V0.7 字体读取/切换与 V0.8 直接操作基础层已完成代码接入，V0.8 已通过 `npm run verify`（96 个单元测试 + TypeScript + Vite build），真实插件图标点击仍待 Chrome 手动验收。
 
 当前目标：
 
-1. 按 `docs/ACCEPTANCE_CRITERIA.md` 联合验收 V0.4 测距、V0.5 共享元素与 V0.5.5 UI Refresh。
-2. 重点回归页面评论编辑隔离、删除弹窗键盘操作和宿主页面退出恢复，避免视觉升级掩盖业务回归。
+1. 按 `docs/ACCEPTANCE_CRITERIA.md` 联合验收 V0.4 测距、V0.5 共享元素、V0.5.5 UI Refresh、V0.6 自动布局辅助、V0.7 字体读取/切换与 V0.8 直接操作基础层。
+2. 重点回归顶部评论模式就地弹窗、评论编号点、自动布局中部粉色拖拽横条、同父容器精准交换预览、交换位移动画、紫色虚线参考线反馈、测距模式页面内点击 A 取消重选、共享元素开关、字体字段展示、本地字体读取入口、JSON 0.8 导出、Prompt 字体/布局段、页面评论编辑隔离、删除弹窗键盘操作和宿主页面退出恢复。
 
 ## 2. 第一阶段目标
 
@@ -458,11 +458,14 @@ npm run verify
 
 ## 5. 当前下一步
 
-V0.4 已经具备可手动验收的代码与构建：
+V0.6 已经具备可手动验收的代码与构建：
 
 1. 在 Chrome 扩展管理页 `Load unpacked` 重新加载 `extension/dist`。
-2. 打开 `extension/test-pages/basic.html` 中的 `V0.4 标尺测距验收目标` 区块。
-3. 按 `docs/ACCEPTANCE_CRITERIA.md` 第 8 节逐项验证 V0.4 元素尺寸/视口距离/父容器距离/双元素测距/附加测距复选框/Prompt 测距段落/JSON 兼容。
+2. 打开 `extension/test-pages/basic.html`。
+3. 按 `docs/ACCEPTANCE_CRITERIA.md` 复核 V0.4 元素尺寸/视口距离/父容器距离/双元素测距/附加测距复选框/Prompt 测距段落/JSON 兼容。
+4. 验证 V0.5 相似元素检测、批量高亮、共享记录保存、范围筛选、JSON sharedGroup 与 Prompt 作用范围。
+5. 验证 V0.5.5 暗色 Inspector、浮动工具栏、标题栏拖动、长度单位胶囊、删除弹窗键盘焦点和页面评论编辑隔离。
+6. 验证 V0.6 布局辅助展示、布局意图保存、JSON `layoutContext/layoutIntent` 和 Prompt “布局辅助”段。
 
 V0.4 已完成任务清单：
 
@@ -509,7 +512,7 @@ V0.4 已完成任务清单：
 
 ### Task V0.5-1 至 V0.5-10：共享元素闭环
 
-状态：代码实现完成，等待 Chrome 手动验收。
+状态：代码实现完成，已通过 Chrome 148 pipe 自动烟测的数据闭环，等待 Chrome 手动视觉与交互验收。
 
 - `types.ts` / `session-store.ts` / `json-schema.ts`：导出版本升级至 `0.5`，记录新增 `sharedGroup`，旧数据兼容导入。
 - `similar-elements.ts`：三级匹配、插件节点排除与 50 个上限已具备单元测试。
@@ -522,20 +525,70 @@ V0.4 已完成任务清单：
 
 ### Task V0.5.5-1 至 V0.5.5-12：UI Refresh 整合
 
-状态：代码实现完成，`v0.5.5-beta.1` 预览包已准备通过 GitHub Release 分发，等待 Chrome 手动视觉与交互复核后决定正式版本。
+状态：代码实现完成，`v0.5.5-beta.1` 预览包已准备通过 GitHub Release 分发，已通过 Chrome 148 pipe 自动烟测，等待 Chrome 手动视觉与交互复核后决定正式版本。
 
 - `panel/design-tokens.ts` / `panel-root.tsx`：Sketch-style 哑光深色基础色、蓝紫强调、约 360px 面板、胶囊控件/徽标/焦点/减少动画样式已统一；Panel 标题栏拖动和视口边界约束已接入。
-- `InspectorSection.tsx` / `StatusBadge.tsx` / `FloatingToolbar.tsx`：主面板可复用构件已接入，点击徽标使用原生按钮语义。
+- `InspectorSection.tsx` / `StatusBadge.tsx` / `FloatingToolbar.tsx`：主面板可复用构件已接入，点击徽标使用原生按钮语义；顶部工具栏已按 Figma「绘管家」节点对齐为黑色胶囊、icon-only 模式按钮、记录文字按钮与蓝色数量徽标。
 - `ElementInfoPanel.tsx` / `StyleEditorPanel.tsx` / `MeasurementPanel.tsx` / `SimilarElementsPanel.tsx` / `CommentEditor.tsx` / `RecordList.tsx` / `ImportExportBar.tsx`：主要内容区已改为紧凑 Inspector 区块和深灰控件；长度输入改为左数值右单位胶囊，默认 `px`、支持 `pt`、清空归零。
 - `overlay/overlay-root.ts`：复用现有尺寸标签承载元素标签能力，选择框、测距线、相似高亮与标签配色改为红粉高对比反馈；不引入新的宿主页面样式注入点。
 - `CommentEditor.tsx` / `ConfirmDialog.tsx` / `App.tsx`：修复重复表单 ID、对话框焦点/Escape/Tab 键盘操作，以及页面记录编辑误串元素评论入口的问题。
 
 已完成验证：
 
-1. `cd extension && npm run verify` 已通过：89 个单元测试、TypeScript、Vite build。
+1. V0.5.5 当轮 `cd extension && npm run verify` 已通过：89 个单元测试、TypeScript、Vite build；当前 V0.8 已提升到 96 个单元测试并通过同一质量门禁，本次 Figma 工具栏对齐后也已通过 `npm run verify`。
 2. 长度单位胶囊保存记录时已按实际新值后缀写入 `StyleChange.unit`，避免切换为 `pt` 后导出仍标记为 `px`。
-3. Edge MV3 自动化烟测仍覆盖 V0.1 主流程，V0.2 至 V0.5.5 的页面交互和视觉部分以单元测试 + Chrome 手动验收为主。
-4. Chrome 命令行加载 unpacked extension 在当前环境被浏览器策略限制，仍以 Chrome 扩展管理页 `Load unpacked` 作为正式人工验收方式。
+3. Chrome 148 pipe 自动烟测已覆盖 `extension/dist` 加载、项目 worker 注入、Panel / Overlay 创建、V0.4 双元素测距、V0.5 批量记录、记录列表、JSON 导出、Panel 拖动、删除弹窗键盘焦点和 Prompt 复制。
+4. Chrome 普通 `--load-extension` / `--disable-extensions-except` 启动参数在当前环境未注册项目扩展；自动化使用 CDP pipe 加载，正式人工验收仍以 Chrome 扩展管理页 `Load unpacked` 为准。
+5. 仍需人工复核真实插件图标点击和整体视觉手感。
+
+### Task V0.6-1 至 V0.6-7：自动布局辅助
+
+状态：代码实现完成，`npm run verify` 已通过；Chrome 页面内 content script 烟测已验证布局读取、保存、JSON 导出与 Prompt 复制，真实插件图标点击仍待手动验收。
+
+实现内容：
+
+1. `types.ts` / `json-schema.ts` / `session-store.ts`：导出版本升级至 `0.6`，记录新增 `layoutContext` 与 `layoutIntent`，兼容导入 V0.1 至 V0.6。
+2. `content/layout-inspector.ts`：读取选中元素直接父容器 selector、display、flex/grid 常见字段、gap 和子元素位置。
+3. `content/index.ts`：runtime 保存 `currentLayoutContext`，选择元素、滚动和 resize 时更新；新增 `saveLayoutIntent()` 保存布局记录。
+4. `panel/components/LayoutPanel.tsx`：展示布局事实，支持保存方向、对齐、目标间距和说明。
+5. `prompt-template.ts`：新增“布局辅助”Prompt 子段落。
+6. 测试已覆盖布局读取、V0.6 JSON 导入导出与 Prompt 输出。
+7. Chrome 页面内烟测已覆盖：启用 content script、选中 `#save-button`、展示 LayoutPanel、读取父容器 flex/gap、保存横向居中 + `16px` gap 布局意图、导出 JSON `version: "0.6"`、复制包含“布局辅助”和“目标间距：16px”的 AI Prompt。
+8. 文档已同步 `V0.6_AUTO_LAYOUT_SPEC.md`、`DATA_FORMAT.md`、`TECH_ARCHITECTURE.md`、`ACCEPTANCE_CRITERIA.md` 和本计划。
+
+---
+
+### Task V0.7-1 至 V0.7-5：字体读取与切换
+
+状态：代码实现完成，`npm run verify` 已通过；Chrome headless 页面内 content script 烟测已验证字体字段展示、预览、保存、JSON 导出与 Prompt 复制，真实插件图标点击仍待手动验收。
+
+实现内容：
+
+1. `types.ts` / `json-schema.ts` / `session-store.ts`：导出版本升级至 `0.7`，记录新增 `fontChanges`，兼容导入 V0.1 至 V0.7。
+2. `shared/font-changes.ts`：集中维护字体字段白名单与 `deriveFontChanges()`。
+3. `content/style-inspector.ts`：新增 `fontFamily` 与 `letterSpacing` computed style 读取。
+4. `panel/components/StyleEditorPanel.tsx`：将“排版”分组升级为“字体 / 排版”，支持字体栈与字间距输入。
+5. `prompt-template.ts`：新增“字体修改”Prompt 子段，并避免字体项重复出现在普通样式段。
+6. 测试已覆盖字体字段读取、V0.7 JSON 导入导出与 Prompt 字体段输出。
+7. Chrome headless 页面内烟测已覆盖：选中 `#style-primary-button`、展示“字体 / 排版”、修改字体为 `Inter, Arial, sans-serif`、字间距 `0.4px`、保存记录、导出 JSON `version: "0.7"` 且包含 `fontChanges`、复制包含“字体修改”和“字间距（letterSpacing）”的 AI Prompt。
+8. 文档已同步 `V0.7_FONT_SPEC.md`、`DATA_FORMAT.md`、`TECH_ARCHITECTURE.md`、`ACCEPTANCE_CRITERIA.md` 和本计划。
+
+---
+
+### Task V0.8-1 至 V0.8-7：直接操作基础层
+
+状态：代码实现完成，`npm run verify` 与 Chrome headless 页面内烟测已通过；Chrome 真实插件手动验收待执行。
+
+实现内容：
+
+1. `types.ts` / `json-schema.ts` / `session-store.ts`：导出版本升级至 `0.8`，兼容导入 V0.1 至 V0.8。
+2. `panel/components/FloatingToolbar.tsx`：交互模式新增 `auto-layout`，顶部工具栏新增“自动布局”按钮。
+3. `overlay/overlay-root.ts`：新增紫色自动布局选中态、中部粉色拖拽横条、目标框、紫色虚线参考线和交换位置标签；测距层补齐跨视口虚线参考线。
+4. `content/index.ts`：支持同父容器兄弟元素基于鼠标命中目标的精准交换预览和位移动画，松开后写入布局记录，并在退出编辑器时恢复拖动前 DOM 顺序；测距模式支持页面内再次点击 A 取消并重选。
+5. `panel/components/SimilarElementsPanel.tsx`：相似元素区新增“共享元素”开关，开启后高亮相似元素并影响后续记录保存范围。
+6. `panel/components/StyleEditorPanel.tsx`：字体族控件新增“读取本地字体”入口、本地字体下拉和手动字体栈降级。
+7. Chrome headless 页面内烟测已覆盖：自动布局按钮可见、V0.8 标识可见、拖动 `#save-button` 到 `cancel-button` 后自动保存布局记录、退出编辑器后 DOM 顺序恢复、共享元素开关可开启并高亮 3 个相似元素、字体读取入口可见。
+8. 文档已同步 `V0.8_DIRECT_MANIPULATION_SPEC.md`、`DATA_FORMAT.md`、`TECH_ARCHITECTURE.md`、`ACCEPTANCE_CRITERIA.md`、`PROJECT_ROADMAP.md` 和本计划。
 
 ---
 

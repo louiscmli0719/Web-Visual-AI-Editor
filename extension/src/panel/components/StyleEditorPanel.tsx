@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react";
+import { useState, type ChangeEvent } from "react";
 import { FONT_WEIGHT_OPTIONS } from "../../content/style-inspector";
 import type { StyleDraft, StylePropertyName, StylePropertySnapshot, StyleUnit } from "../../shared/types";
 import { InspectorSection } from "./InspectorSection";
@@ -21,10 +21,28 @@ type StyleGroup = {
 
 const STYLE_GROUPS: StyleGroup[] = [
   { title: "外观", open: true, properties: ["color", "backgroundColor", "borderRadius"] },
-  { title: "排版", open: true, properties: ["fontSize", "fontWeight", "lineHeight"] },
+  { title: "字体 / 排版", open: true, properties: ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing"] },
   { title: "间距", open: false, properties: ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "marginTop", "marginRight", "marginBottom", "marginLeft"] },
   { title: "描边与效果", open: false, properties: ["borderWidth", "borderColor", "boxShadow"] },
 ];
+
+const FALLBACK_FONT_OPTIONS = [
+  "system-ui, sans-serif",
+  "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+  "\"SF Pro Display\", \"PingFang SC\", sans-serif",
+  "\"PingFang SC\", \"Microsoft YaHei\", sans-serif",
+  "\"Noto Sans SC\", sans-serif",
+  "Georgia, serif",
+  "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+];
+
+type LocalFontData = {
+  family: string;
+};
+
+type LocalFontWindow = Window & {
+  queryLocalFonts?: () => Promise<LocalFontData[]>;
+};
 
 export function StyleEditorPanel({ supported, snapshot, draft, hasSelection, onChange, onReset }: StyleEditorPanelProps) {
   if (!hasSelection) {
@@ -93,6 +111,10 @@ function renderControl(
   value: string,
   onChange: (property: StylePropertyName, next: string) => void
 ) {
+  if (snapshot.property === "fontFamily") {
+    return <FontFamilyControl value={value} onChange={(next) => onChange(snapshot.property, next)} />;
+  }
+
   if (snapshot.inputType === "color") {
     return (
       <div className="wvaie-style-color">
@@ -146,6 +168,81 @@ function renderControl(
       type="text"
       value={value}
     />
+  );
+}
+
+function FontFamilyControl({ value, onChange }: { value: string; onChange(next: string): void }) {
+  const [fonts, setFonts] = useState<string[]>(FALLBACK_FONT_OPTIONS);
+  const [status, setStatus] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+
+  async function loadLocalFonts(): Promise<void> {
+    const queryLocalFonts = (window as LocalFontWindow).queryLocalFonts;
+
+    if (!queryLocalFonts) {
+      setStatus("当前浏览器或页面环境不支持读取本地字体，可继续手动输入字体栈。");
+      return;
+    }
+
+    setLoading(true);
+    setStatus("正在请求本地字体权限…");
+
+    try {
+      const localFonts = await queryLocalFonts();
+      const families = Array.from(new Set(localFonts.map((font) => font.family).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b)
+      );
+
+      if (families.length === 0) {
+        setStatus("没有读取到本地字体，已保留默认字体选项。");
+        return;
+      }
+
+      setFonts([...families, ...FALLBACK_FONT_OPTIONS]);
+      setStatus(`已读取 ${families.length} 个本地字体族。`);
+    } catch {
+      setStatus("本地字体读取被取消或失败，可继续手动输入字体栈。");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const selectValue = fonts.includes(value) ? value : "";
+
+  return (
+    <div className="wvaie-font-family-control">
+      <div className="wvaie-font-family-row">
+        <select
+          aria-label="字体选择"
+          className="wvaie-style-select"
+          onChange={(event) => {
+            if (event.target.value) {
+              onChange(event.target.value);
+            }
+          }}
+          value={selectValue}
+        >
+          <option value="">当前 / 手动字体</option>
+          {fonts.map((font) => (
+            <option key={font} value={font}>
+              {font}
+            </option>
+          ))}
+        </select>
+        <button className="wvaie-button wvaie-button-text" disabled={loading} onClick={loadLocalFonts} type="button">
+          {loading ? "读取中" : "读取本地字体"}
+        </button>
+      </div>
+      <input
+        aria-label="字体栈"
+        className="wvaie-style-input"
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="例如 SF Pro Display, PingFang SC, sans-serif"
+        type="text"
+        value={value}
+      />
+      {status && <p className="wvaie-font-status" role="status">{status}</p>}
+    </div>
   );
 }
 

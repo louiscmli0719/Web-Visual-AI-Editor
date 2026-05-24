@@ -1,4 +1,12 @@
-import { createOverlayRoot, type OverlayController, type HighlightRect, type MeasurementOverlay } from "../overlay/overlay-root";
+import {
+  createOverlayRoot,
+  type OverlayController,
+  type HighlightRect,
+  type LayoutDragStart,
+  type LayoutGuideOverlay,
+  type MeasurementOverlay,
+  type CommentPinOverlay
+} from "../overlay/overlay-root";
 import { createPanelRoot, type PanelController } from "../panel/panel-root";
 import type { PanelView } from "../panel/App";
 import type { InteractionMode } from "../panel/components/FloatingToolbar";
@@ -16,7 +24,9 @@ import type {
   Measurements,
   MatchLevel,
   SharedGroup,
-  RecordRangeFilter
+  RecordRangeFilter,
+  LayoutContext,
+  LayoutIntent
 } from "../shared/types";
 import { buildAiPrompt } from "../shared/prompt-template";
 import { readStyleUnit } from "../shared/style-units";
@@ -31,6 +41,7 @@ import {
   computePairMeasurement
 } from "./measurement";
 import { findSimilarElements } from "./similar-elements";
+import { readLayoutContext } from "./layout-inspector";
 import {
   addEditRecord,
   updateEditRecord,
@@ -42,6 +53,46 @@ import {
 } from "./session-store";
 
 type MeasurementMode = "off" | "awaiting-a" | "awaiting-b" | "complete";
+type LayoutFlow = "horizontal" | "vertical";
+
+type LayoutDragState = {
+  pointerId: number;
+  element: HTMLElement;
+  parent: HTMLElement;
+  originalIndex: number;
+  originalNextSibling: Element | null;
+  previewIndex: number;
+  previewTarget: HTMLElement | null;
+  animationStyles: Map<HTMLElement, LayoutAnimationStyle>;
+  animationTimers: Map<HTMLElement, number>;
+  flow: LayoutFlow;
+};
+
+type LayoutDropInfo = {
+  insertIndex: number;
+  swapTarget: HTMLElement;
+  targetRect: HighlightRect | null;
+  lineRect: HighlightRect;
+  alignmentLines: HighlightRect[];
+  label: string;
+};
+
+type LayoutAnimationStyle = {
+  transform: string;
+  transition: string;
+  willChange: string;
+};
+
+type LayoutMove = {
+  element: HTMLElement;
+  parent: HTMLElement;
+  originalNextSibling: Element | null;
+};
+
+type QuickCommentTarget = {
+  element: ElementSnapshot;
+  rect: ElementSnapshot["rect"];
+};
 
 type EditorRuntime = {
   enabled: boolean;
@@ -68,6 +119,8 @@ type EditorRuntime = {
   pairFirstElement: HTMLElement | null;
   pairSecondElement: HTMLElement | null;
   currentMeasurements: Measurements | null;
+  currentLayoutContext: LayoutContext | null;
+  quickCommentTarget: QuickCommentTarget | null;
   attachMeasurements: boolean;
   similarMatchLevel: MatchLevel | null;
   similarPrimaryFeature: string;
@@ -76,6 +129,9 @@ type EditorRuntime = {
   similarElements: HTMLElement[];
   similarSnapshots: ElementSnapshot[];
   applyToSimilar: boolean;
+  layoutDrag: LayoutDragState | null;
+  layoutGuide: LayoutGuideOverlay | null;
+  layoutMoves: LayoutMove[];
   rafId: number | null;
 };
 
@@ -112,6 +168,8 @@ function getRuntime(): EditorRuntime {
       pairFirstElement: null,
       pairSecondElement: null,
       currentMeasurements: null,
+      currentLayoutContext: null,
+      quickCommentTarget: null,
       attachMeasurements: true,
       similarMatchLevel: null,
       similarPrimaryFeature: "",
@@ -120,6 +178,9 @@ function getRuntime(): EditorRuntime {
       similarElements: [],
       similarSnapshots: [],
       applyToSimilar: false,
+      layoutDrag: null,
+      layoutGuide: null,
+      layoutMoves: [],
       rafId: null
     };
   }
@@ -132,7 +193,11 @@ function enableEditor(runtime: EditorRuntime): void {
     return;
   }
 
-  runtime.overlay = createOverlayRoot();
+  runtime.overlay = createOverlayRoot({
+    onLayoutDragStart(event) {
+      startLayoutDrag(runtime, event);
+    }
+  });
   runtime.panel = createPanelRoot({
     onSaveComment(comment, metadata) {
       if (runtime.editingRecord) {
@@ -140,6 +205,12 @@ function enableEditor(runtime: EditorRuntime): void {
       } else {
         saveRecord(runtime, comment, metadata);
       }
+    },
+    onSaveQuickComment(comment, metadata) {
+      saveQuickComment(runtime, comment, metadata);
+    },
+    onCancelQuickComment() {
+      cancelQuickComment(runtime);
     },
     onSavePageComment(comment, metadata) {
       if (runtime.editingRecord?.scope === "page") {
@@ -149,6 +220,9 @@ function enableEditor(runtime: EditorRuntime): void {
       runtime.session = addEditRecord(runtime.session, null, comment, [], metadata, null, null);
       runtime.statusMessage = "页面评论已保存。";
       updateUi(runtime);
+    },
+    onSaveLayoutIntent(intent) {
+      saveLayoutIntent(runtime, intent);
     },
     onLocateRecord(record) {
       locateRecord(runtime, record);
@@ -204,6 +278,12 @@ function enableEditor(runtime: EditorRuntime): void {
     onEnterMeasurementMode() {
       enterMeasurementMode(runtime);
     },
+    onAutoLayoutMode() {
+      enterAutoLayoutMode(runtime);
+    },
+    onCommentMode() {
+      enterCommentMode(runtime);
+    },
     onExitMeasurementMode() {
       exitMeasurementMode(runtime);
     },
@@ -246,6 +326,8 @@ function disableEditor(runtime: EditorRuntime): void {
   }
 
   runtime.stylePreviewManager.resetAll();
+  restoreLayoutMoves(runtime);
+  clearLayoutDrag(runtime);
   runtime.overlay?.destroy();
   runtime.panel?.destroy();
   runtime.overlay = null;
@@ -263,7 +345,10 @@ function disableEditor(runtime: EditorRuntime): void {
   runtime.pairFirstElement = null;
   runtime.pairSecondElement = null;
   runtime.currentMeasurements = null;
+  runtime.currentLayoutContext = null;
+  runtime.quickCommentTarget = null;
   runtime.editingRecord = null;
+  runtime.layoutGuide = null;
   clearSimilarElements(runtime);
   removeEditorListeners();
 }
@@ -315,7 +400,7 @@ function removeEditorListeners(): void {
 function handleMouseMove(event: MouseEvent): void {
   const runtime = getRuntime();
 
-  if (!runtime.enabled || runtime.interactionMode === "browse" || isPluginEvent(event)) {
+  if (!runtime.enabled || runtime.layoutDrag || runtime.interactionMode === "browse" || isPluginEvent(event)) {
     return;
   }
 
@@ -353,23 +438,13 @@ function handleClick(event: MouseEvent): void {
     return;
   }
 
-  // Pair measurement: capture A or B
-  if (runtime.measurementMode === "awaiting-a") {
-    runtime.pairFirstElement = target;
-    runtime.measurementMode = "awaiting-b";
-    selectElement(runtime, target, "已选择元素 A，请点击元素 B。");
+  if (runtime.interactionMode === "comment") {
+    openQuickComment(runtime, target);
     return;
   }
 
-  if (runtime.measurementMode === "awaiting-b") {
-    if (!runtime.pairFirstElement || target === runtime.pairFirstElement) {
-      runtime.statusMessage = "不能选择同一个元素，请选择另一个元素。";
-      updateUi(runtime);
-      return;
-    }
-    runtime.pairSecondElement = target;
-    runtime.measurementMode = "complete";
-    selectElement(runtime, runtime.pairFirstElement, "双元素测距完成，元素 A 保持为记录对象。");
+  if (runtime.interactionMode === "measure") {
+    handleMeasurementClick(runtime, target);
     return;
   }
 
@@ -392,12 +467,72 @@ function handleKeyDown(event: KeyboardEvent): void {
     return;
   }
 
+  if (runtime.quickCommentTarget) {
+    cancelQuickComment(runtime);
+    return;
+  }
+
   if (runtime.interactionMode === "measure") {
     exitMeasurementMode(runtime);
     return;
   }
 
+  if (runtime.interactionMode === "auto-layout") {
+    enterSelectMode(runtime);
+    return;
+  }
+
   enterBrowseMode(runtime);
+}
+
+function handleMeasurementClick(runtime: EditorRuntime, target: HTMLElement): void {
+  if (runtime.measurementMode === "awaiting-a") {
+    setMeasurementFirstElement(runtime, target, "已选择元素 A，请点击元素 B。");
+    return;
+  }
+
+  if (runtime.measurementMode === "awaiting-b") {
+    if (!runtime.pairFirstElement) {
+      setMeasurementFirstElement(runtime, target, "已选择元素 A，请点击元素 B。");
+      return;
+    }
+
+    if (target === runtime.pairFirstElement) {
+      clearMeasurementSelection(runtime, "已取消元素 A，请重新点击页面元素选择 A。");
+      return;
+    }
+
+    runtime.pairSecondElement = target;
+    runtime.measurementMode = "complete";
+    selectElement(runtime, runtime.pairFirstElement, "双元素测距完成，元素 A 保持为记录对象；点击 A 可取消并重新测距。");
+    return;
+  }
+
+  if (runtime.measurementMode === "complete") {
+    if (target === runtime.pairFirstElement) {
+      clearMeasurementSelection(runtime, "已取消本次测距，请重新点击页面元素选择 A。");
+      return;
+    }
+
+    setMeasurementFirstElement(runtime, target, "已重新选择元素 A，请点击元素 B。");
+    return;
+  }
+
+  setMeasurementFirstElement(runtime, target, "已选择元素 A，请点击元素 B。");
+}
+
+function setMeasurementFirstElement(runtime: EditorRuntime, target: HTMLElement, statusMessage: string): void {
+  runtime.pairFirstElement = target;
+  runtime.pairSecondElement = null;
+  runtime.measurementMode = "awaiting-b";
+  selectElement(runtime, target, statusMessage);
+}
+
+function clearMeasurementSelection(runtime: EditorRuntime, statusMessage: string): void {
+  runtime.pairFirstElement = null;
+  runtime.pairSecondElement = null;
+  runtime.measurementMode = "awaiting-a";
+  clearSelectedElement(runtime, statusMessage);
 }
 
 function handleViewportChange(): void {
@@ -408,6 +543,9 @@ function handleViewportChange(): void {
   }
 
   computeCurrentMeasurements(runtime);
+  computeCurrentLayoutContext(runtime);
+  refreshQuickCommentTarget(runtime);
+  runtime.layoutGuide = null;
   scheduleUiUpdate(runtime);
 }
 
@@ -451,6 +589,106 @@ function saveRecord(runtime: EditorRuntime, comment: string, metadata: RecordMet
     runtime.pairSecondElement = null;
     computeCurrentMeasurements(runtime);
   }
+  updateUi(runtime);
+}
+
+function openQuickComment(runtime: EditorRuntime, target: HTMLElement): void {
+  selectElement(runtime, target, "评论模式：已选中元素，请填写评论。");
+
+  if (!runtime.selectedSnapshot) {
+    runtime.statusMessage = "该元素暂不支持添加评论。";
+    updateUi(runtime);
+    return;
+  }
+
+  runtime.quickCommentTarget = {
+    element: runtime.selectedSnapshot,
+    rect: rectFromElement(target)
+  };
+  runtime.statusMessage = "评论弹窗已打开，保存后会加入记录列表。";
+  updateUi(runtime);
+}
+
+function saveQuickComment(runtime: EditorRuntime, comment: string, metadata: RecordMetadata): void {
+  const target = runtime.quickCommentTarget;
+  const nextComment = comment.trim();
+
+  if (!target || !runtime.selectedSnapshot) {
+    runtime.statusMessage = "请先在评论模式下点击页面元素。";
+    updateUi(runtime);
+    return;
+  }
+
+  if (!nextComment) {
+    runtime.statusMessage = "请填写评论后再保存。";
+    updateUi(runtime);
+    return;
+  }
+
+  runtime.session = addEditRecord(
+    runtime.session,
+    runtime.selectedSnapshot,
+    nextComment,
+    [],
+    { ...metadata, scope: "element" },
+    null,
+    buildSharedGroup(runtime)
+  );
+  runtime.quickCommentTarget = null;
+  runtime.applyToSimilar = false;
+  runtime.statusMessage = "评论已保存，可继续点击页面元素添加下一条。";
+  updateUi(runtime);
+}
+
+function cancelQuickComment(runtime: EditorRuntime): void {
+  runtime.quickCommentTarget = null;
+  runtime.statusMessage = runtime.interactionMode === "comment"
+    ? "已取消当前评论，仍可继续点击元素添加评论。"
+    : "已取消当前评论。";
+  updateUi(runtime);
+}
+
+function refreshQuickCommentTarget(runtime: EditorRuntime): void {
+  if (!runtime.quickCommentTarget || !runtime.selectedElement || !runtime.selectedSnapshot) {
+    return;
+  }
+
+  runtime.quickCommentTarget = {
+    element: runtime.selectedSnapshot,
+    rect: rectFromElement(runtime.selectedElement)
+  };
+}
+
+function saveLayoutIntent(runtime: EditorRuntime, intent: LayoutIntent): void {
+  if (!runtime.selectedSnapshot || !runtime.currentLayoutContext) {
+    runtime.statusMessage = "请先选择可识别父容器布局的元素。";
+    updateUi(runtime);
+    return;
+  }
+
+  const metadata: RecordMetadata = {
+    category: "layout",
+    priority: "medium",
+    status: "open",
+    interactionState: null,
+    scope: "element"
+  };
+
+  runtime.session = addEditRecord(
+    runtime.session,
+    runtime.selectedSnapshot,
+    buildLayoutComment(intent),
+    [],
+    metadata,
+    null,
+    buildSharedGroup(runtime),
+    {
+      layoutContext: runtime.currentLayoutContext,
+      layoutIntent: intent
+    }
+  );
+  runtime.statusMessage = "布局意图已保存。";
+  runtime.applyToSimilar = false;
   updateUi(runtime);
 }
 
@@ -552,6 +790,9 @@ function importJson(runtime: EditorRuntime, value: string): void {
   runtime.selectedStyleSnapshot = [];
   runtime.selectedStyleSupported = false;
   runtime.styleDraft = {};
+  runtime.currentMeasurements = null;
+  runtime.currentLayoutContext = null;
+  runtime.quickCommentTarget = null;
   clearSimilarElements(runtime);
   runtime.unmatchedRecordIds = new Set();
   runtime.statusMessage = `已导入 ${parsed.session.records.length} 条记录。`;
@@ -577,17 +818,36 @@ function selectElement(runtime: EditorRuntime, element: Element, statusMessage: 
   runtime.selectedStyleSnapshot = isHtmlElement ? readStyleSnapshot(element) : [];
   runtime.selectedStyleSupported = isHtmlElement;
   runtime.styleDraft = {};
+  runtime.quickCommentTarget = null;
   runtime.applyToSimilar = false;
   runtime.panelView = "inspector";
   runtime.statusMessage = isHtmlElement ? statusMessage : "该元素暂不支持样式预览。";
   computeSimilarElements(runtime);
   computeCurrentMeasurements(runtime);
+  computeCurrentLayoutContext(runtime);
+  updateUi(runtime);
+}
+
+function clearSelectedElement(runtime: EditorRuntime, statusMessage: string): void {
+  runtime.selectedElement = null;
+  runtime.selectedSnapshot = null;
+  runtime.selectedStyleSnapshot = [];
+  runtime.selectedStyleSupported = false;
+  runtime.styleDraft = {};
+  runtime.quickCommentTarget = null;
+  runtime.applyToSimilar = false;
+  runtime.panelView = "inspector";
+  runtime.statusMessage = statusMessage;
+  clearSimilarElements(runtime);
+  computeCurrentMeasurements(runtime);
+  computeCurrentLayoutContext(runtime);
   updateUi(runtime);
 }
 
 function computeCurrentMeasurements(runtime: EditorRuntime): void {
   if (!runtime.selectedElement) {
     runtime.currentMeasurements = null;
+    runtime.currentLayoutContext = null;
     return;
   }
 
@@ -658,6 +918,10 @@ function computeCurrentMeasurements(runtime: EditorRuntime): void {
     parent,
     pair
   };
+}
+
+function computeCurrentLayoutContext(runtime: EditorRuntime): void {
+  runtime.currentLayoutContext = runtime.selectedElement ? readLayoutContext(runtime.selectedElement) : null;
 }
 
 function computeSimilarElements(runtime: EditorRuntime): void {
@@ -741,6 +1005,8 @@ function highlightSharedGroup(runtime: EditorRuntime, record: EditRecord): void 
 }
 
 function enterMeasurementMode(runtime: EditorRuntime): void {
+  clearLayoutDrag(runtime);
+  runtime.quickCommentTarget = null;
   runtime.interactionMode = "measure";
   runtime.panelView = "inspector";
   runtime.pairSecondElement = null;
@@ -757,6 +1023,8 @@ function enterMeasurementMode(runtime: EditorRuntime): void {
 }
 
 function exitMeasurementMode(runtime: EditorRuntime): void {
+  clearLayoutDrag(runtime);
+  runtime.quickCommentTarget = null;
   runtime.interactionMode = "select";
   runtime.measurementMode = "off";
   runtime.pairFirstElement = null;
@@ -767,6 +1035,8 @@ function exitMeasurementMode(runtime: EditorRuntime): void {
 }
 
 function resetPairMeasurement(runtime: EditorRuntime): void {
+  clearLayoutDrag(runtime);
+  runtime.quickCommentTarget = null;
   runtime.interactionMode = "measure";
   runtime.measurementMode = "awaiting-a";
   runtime.pairFirstElement = null;
@@ -777,6 +1047,8 @@ function resetPairMeasurement(runtime: EditorRuntime): void {
 }
 
 function enterBrowseMode(runtime: EditorRuntime): void {
+  clearLayoutDrag(runtime);
+  runtime.quickCommentTarget = null;
   runtime.interactionMode = "browse";
   runtime.measurementMode = "off";
   runtime.pairFirstElement = null;
@@ -788,6 +1060,8 @@ function enterBrowseMode(runtime: EditorRuntime): void {
 }
 
 function enterSelectMode(runtime: EditorRuntime): void {
+  clearLayoutDrag(runtime);
+  runtime.quickCommentTarget = null;
   runtime.interactionMode = "select";
   runtime.panelView = "inspector";
   runtime.measurementMode = "off";
@@ -798,7 +1072,564 @@ function enterSelectMode(runtime: EditorRuntime): void {
   updateUi(runtime);
 }
 
+function enterAutoLayoutMode(runtime: EditorRuntime): void {
+  runtime.quickCommentTarget = null;
+  runtime.interactionMode = "auto-layout";
+  runtime.panelView = "inspector";
+  runtime.measurementMode = "off";
+  runtime.pairFirstElement = null;
+  runtime.pairSecondElement = null;
+  runtime.layoutGuide = null;
+  computeCurrentMeasurements(runtime);
+  computeCurrentLayoutContext(runtime);
+  runtime.statusMessage = runtime.selectedElement
+    ? "自动布局：拖动元素中部粉色横条，和同父容器元素精准交换。"
+    : "自动布局：先点击一个元素，再拖动粉色横条交换同级元素位置。";
+  updateUi(runtime);
+}
+
+function enterCommentMode(runtime: EditorRuntime): void {
+  clearLayoutDrag(runtime);
+  runtime.interactionMode = "comment";
+  runtime.panelView = "inspector";
+  runtime.measurementMode = "off";
+  runtime.pairFirstElement = null;
+  runtime.pairSecondElement = null;
+  runtime.quickCommentTarget = null;
+  computeCurrentMeasurements(runtime);
+  computeCurrentLayoutContext(runtime);
+  runtime.statusMessage = "评论模式：点击页面元素，直接添加一条评论。";
+  updateUi(runtime);
+}
+
+function startLayoutDrag(runtime: EditorRuntime, event: LayoutDragStart): void {
+  if (runtime.interactionMode !== "auto-layout") {
+    enterAutoLayoutMode(runtime);
+  }
+
+  if (!runtime.selectedElement?.parentElement) {
+    runtime.statusMessage = "自动布局需要先选择一个有父容器的元素。";
+    updateUi(runtime);
+    return;
+  }
+
+  const parent = runtime.selectedElement.parentElement;
+  const children = getLayoutChildren(parent);
+  if (children.length < 2) {
+    runtime.statusMessage = "当前父容器内没有可交换位置的同级元素。";
+    updateUi(runtime);
+    return;
+  }
+
+  clearLayoutDrag(runtime);
+  runtime.layoutDrag = {
+    pointerId: event.pointerId,
+    element: runtime.selectedElement,
+    parent,
+    originalIndex: children.indexOf(runtime.selectedElement),
+    originalNextSibling: runtime.selectedElement.nextElementSibling,
+    previewIndex: children.indexOf(runtime.selectedElement),
+    previewTarget: null,
+    animationStyles: new Map(),
+    animationTimers: new Map(),
+    flow: readLayoutFlow(parent)
+  };
+  runtime.layoutGuide = buildLayoutGuide(runtime.layoutDrag, event.clientX, event.clientY);
+  runtime.statusMessage = "正在调整布局位置：拖到同级元素上会精准交换，松开后保存记录。";
+
+  window.addEventListener("pointermove", handleLayoutDragMove, true);
+  window.addEventListener("pointerup", handleLayoutDragEnd, true);
+  window.addEventListener("pointercancel", handleLayoutDragEnd, true);
+  updateUi(runtime);
+}
+
+function handleLayoutDragMove(event: PointerEvent): void {
+  const runtime = getRuntime();
+  if (!runtime.layoutDrag || event.pointerId !== runtime.layoutDrag.pointerId) {
+    return;
+  }
+
+  const dropInfo = computeLayoutDropInfo(runtime.layoutDrag, event.clientX, event.clientY);
+
+  if (dropInfo) {
+    previewLayoutMove(runtime.layoutDrag, dropInfo);
+    runtime.layoutGuide = buildLayoutGuideFromDropInfo(dropInfo);
+  } else {
+    runtime.layoutGuide = null;
+  }
+
+  scheduleUiUpdate(runtime);
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleLayoutDragEnd(event: PointerEvent): void {
+  const runtime = getRuntime();
+  if (!runtime.layoutDrag || event.pointerId !== runtime.layoutDrag.pointerId) {
+    return;
+  }
+
+  const drag = runtime.layoutDrag;
+  const dropInfo = computeLayoutDropInfo(drag, event.clientX, event.clientY);
+
+  if (event.type === "pointercancel") {
+    restoreLayoutPreview(drag);
+    clearLayoutAnimationStyles(drag);
+    clearLayoutDrag(runtime);
+    runtime.statusMessage = "已取消本次布局拖动。";
+    updateUi(runtime);
+    return;
+  }
+
+  clearLayoutDrag(runtime);
+
+  if (!dropInfo) {
+    runtime.layoutGuide = null;
+  }
+
+  commitLayoutMove(runtime, drag);
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function clearLayoutDrag(runtime: EditorRuntime): void {
+  if (!runtime.layoutDrag && !runtime.layoutGuide) {
+    return;
+  }
+
+  runtime.layoutDrag = null;
+  runtime.layoutGuide = null;
+  window.removeEventListener("pointermove", handleLayoutDragMove, true);
+  window.removeEventListener("pointerup", handleLayoutDragEnd, true);
+  window.removeEventListener("pointercancel", handleLayoutDragEnd, true);
+}
+
+function commitLayoutMove(runtime: EditorRuntime, drag: LayoutDragState): void {
+  if (!drag.element.isConnected || !drag.parent.isConnected) {
+    runtime.statusMessage = "目标元素已从页面移除，布局调整已取消。";
+    updateUi(runtime);
+    return;
+  }
+
+  const nextChildren = getLayoutChildren(drag.parent);
+  const nextIndex = nextChildren.indexOf(drag.element);
+
+  selectElement(
+    runtime,
+    drag.element,
+    nextIndex === drag.originalIndex
+      ? "自动布局：位置未变化。"
+      : `自动布局：已移动到第 ${nextIndex + 1} 位，并保存布局记录。`
+  );
+
+  if (nextIndex === drag.originalIndex) {
+    return;
+  }
+
+  if (!runtime.layoutMoves.some((move) => move.element === drag.element)) {
+    runtime.layoutMoves.push({
+      element: drag.element,
+      parent: drag.parent,
+      originalNextSibling: drag.originalNextSibling
+    });
+  }
+
+  const layoutIntent: LayoutIntent = {
+    direction: drag.flow,
+    alignment: "none",
+    gap: "",
+    note: `拖动换位：从第 ${drag.originalIndex + 1} 位移动到第 ${nextIndex + 1} 位。`
+  };
+  const metadata: RecordMetadata = {
+    category: "layout",
+    priority: "medium",
+    status: "open",
+    interactionState: null,
+    scope: "element"
+  };
+
+  runtime.session = addEditRecord(
+    runtime.session,
+    readElementSnapshot(drag.element),
+    `布局调整：${layoutIntent.note}`,
+    [],
+    metadata,
+    null,
+    buildSharedGroup(runtime),
+    {
+      layoutContext: runtime.currentLayoutContext,
+      layoutIntent
+    }
+  );
+  runtime.applyToSimilar = false;
+  updateUi(runtime);
+}
+
+function restoreLayoutMoves(runtime: EditorRuntime): void {
+  for (const move of [...runtime.layoutMoves].reverse()) {
+    if (!move.element.isConnected || !move.parent.isConnected) {
+      continue;
+    }
+
+    move.parent.insertBefore(
+      move.element,
+      move.originalNextSibling?.isConnected ? move.originalNextSibling : null
+    );
+  }
+
+  runtime.layoutMoves = [];
+}
+
+function buildLayoutGuide(drag: LayoutDragState, clientX: number, clientY: number): LayoutGuideOverlay | null {
+  const dropInfo = computeLayoutDropInfo(drag, clientX, clientY);
+
+  if (!dropInfo) {
+    return null;
+  }
+
+  return buildLayoutGuideFromDropInfo(dropInfo);
+}
+
+function buildLayoutGuideFromDropInfo(dropInfo: LayoutDropInfo): LayoutGuideOverlay {
+  return {
+    targetRect: dropInfo.targetRect,
+    lineRect: dropInfo.lineRect,
+    alignmentLines: dropInfo.alignmentLines,
+    label: dropInfo.label
+  };
+}
+
+function computeLayoutDropInfo(drag: LayoutDragState, clientX: number, clientY: number): LayoutDropInfo | null {
+  const swapTarget = findLayoutSwapTarget(drag, clientX, clientY);
+  if (!swapTarget) {
+    return null;
+  }
+
+  const children = getLayoutChildren(drag.parent);
+  const insertIndex = children.indexOf(swapTarget);
+  const targetRect = rectFromElement(swapTarget);
+  const lineRect = buildLayoutSwapGuideLine(drag.flow, targetRect);
+  const alignmentLines = buildLayoutAlignmentLines(drag.flow, rectFromElement(drag.element), targetRect, lineRect);
+
+  return {
+    insertIndex,
+    swapTarget,
+    targetRect,
+    lineRect,
+    alignmentLines,
+    label: `交换第 ${insertIndex + 1} 位`
+  };
+}
+
+function previewLayoutMove(drag: LayoutDragState, dropInfo: LayoutDropInfo): void {
+  if (
+    dropInfo.swapTarget === drag.previewTarget ||
+    !drag.element.isConnected ||
+    !drag.parent.isConnected ||
+    !dropInfo.swapTarget.isConnected
+  ) {
+    return;
+  }
+
+  animateLayoutChange(drag, () => {
+    swapSiblingElements(drag.element, dropInfo.swapTarget);
+  });
+  drag.previewTarget = dropInfo.swapTarget;
+  drag.previewIndex = getLayoutChildren(drag.parent).indexOf(drag.element);
+}
+
+function restoreLayoutPreview(drag: LayoutDragState): void {
+  if (!drag.element.isConnected || !drag.parent.isConnected) {
+    return;
+  }
+
+  animateLayoutChange(drag, () => {
+    drag.parent.insertBefore(
+      drag.element,
+      drag.originalNextSibling?.isConnected ? drag.originalNextSibling : null
+    );
+  });
+  drag.previewIndex = drag.originalIndex;
+  drag.previewTarget = null;
+}
+
+function findLayoutSwapTarget(drag: LayoutDragState, clientX: number, clientY: number): HTMLElement | null {
+  const children = new Set(getLayoutChildren(drag.parent));
+
+  for (const element of document.elementsFromPoint(clientX, clientY)) {
+    if (!(element instanceof HTMLElement) || element === drag.element || element.id.startsWith("web-visual-ai-editor-")) {
+      continue;
+    }
+
+    const sibling = findDirectLayoutChild(element, drag.parent);
+    if (sibling && sibling !== drag.element && children.has(sibling)) {
+      return sibling;
+    }
+  }
+
+  return findNearestLayoutSibling(drag, clientX, clientY);
+}
+
+function findDirectLayoutChild(element: HTMLElement, parent: HTMLElement): HTMLElement | null {
+  let current: HTMLElement | null = element;
+
+  while (current && current.parentElement !== parent) {
+    if (current === parent || current.id.startsWith("web-visual-ai-editor-")) {
+      return null;
+    }
+    current = current.parentElement;
+  }
+
+  return current?.parentElement === parent ? current : null;
+}
+
+function findNearestLayoutSibling(drag: LayoutDragState, clientX: number, clientY: number): HTMLElement | null {
+  const siblings = getLayoutChildren(drag.parent).filter((child) => child !== drag.element);
+  let nearest: { element: HTMLElement; distance: number; rect: DOMRect } | null = null;
+
+  for (const sibling of siblings) {
+    const rect = sibling.getBoundingClientRect();
+    const centerX = rect.x + rect.width / 2;
+    const centerY = rect.y + rect.height / 2;
+    const distance = Math.hypot(centerX - clientX, centerY - clientY);
+
+    if (!nearest || distance < nearest.distance) {
+      nearest = { element: sibling, distance, rect };
+    }
+  }
+
+  if (!nearest) {
+    return null;
+  }
+
+  const tolerance = Math.max(24, Math.min(96, Math.max(nearest.rect.width, nearest.rect.height) * 0.36));
+  const withinExpandedRect =
+    clientX >= nearest.rect.x - tolerance &&
+    clientX <= nearest.rect.x + nearest.rect.width + tolerance &&
+    clientY >= nearest.rect.y - tolerance &&
+    clientY <= nearest.rect.y + nearest.rect.height + tolerance;
+
+  return withinExpandedRect ? nearest.element : null;
+}
+
+function swapSiblingElements(element: HTMLElement, target: HTMLElement): void {
+  const parent = element.parentElement;
+  if (!parent || target.parentElement !== parent || element === target) {
+    return;
+  }
+
+  const elementNext = element.nextSibling;
+  const targetNext = target.nextSibling;
+
+  if (elementNext === target) {
+    parent.insertBefore(target, element);
+    return;
+  }
+
+  if (targetNext === element) {
+    parent.insertBefore(element, target);
+    return;
+  }
+
+  parent.insertBefore(element, targetNext);
+  parent.insertBefore(target, elementNext);
+}
+
+function animateLayoutChange(drag: LayoutDragState, mutate: () => void): void {
+  const children = getLayoutChildren(drag.parent);
+  const before = new Map<HTMLElement, DOMRect>();
+
+  for (const child of children) {
+    before.set(child, child.getBoundingClientRect());
+  }
+
+  mutate();
+
+  for (const child of getLayoutChildren(drag.parent)) {
+    const previousRect = before.get(child);
+    if (!previousRect) {
+      continue;
+    }
+
+    const nextRect = child.getBoundingClientRect();
+    const deltaX = previousRect.x - nextRect.x;
+    const deltaY = previousRect.y - nextRect.y;
+
+    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+      continue;
+    }
+
+    animateLayoutChild(drag, child, deltaX, deltaY);
+  }
+}
+
+function animateLayoutChild(drag: LayoutDragState, child: HTMLElement, deltaX: number, deltaY: number): void {
+  const original = rememberLayoutAnimationStyle(drag, child);
+  const timer = drag.animationTimers.get(child);
+
+  if (timer !== undefined) {
+    window.clearTimeout(timer);
+  }
+
+  child.style.transition = "none";
+  child.style.transform = `translate(${Math.round(deltaX)}px, ${Math.round(deltaY)}px) ${original.transform}`.trim();
+  child.style.willChange = "transform";
+
+  window.requestAnimationFrame(() => {
+    child.style.transition = "transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+    child.style.transform = original.transform;
+  });
+
+  drag.animationTimers.set(
+    child,
+    window.setTimeout(() => {
+      restoreLayoutAnimationStyle(drag, child);
+    }, 180)
+  );
+}
+
+function rememberLayoutAnimationStyle(drag: LayoutDragState, element: HTMLElement): LayoutAnimationStyle {
+  const existing = drag.animationStyles.get(element);
+  if (existing) {
+    return existing;
+  }
+
+  const style = {
+    transform: element.style.transform,
+    transition: element.style.transition,
+    willChange: element.style.willChange
+  };
+  drag.animationStyles.set(element, style);
+  return style;
+}
+
+function restoreLayoutAnimationStyle(drag: LayoutDragState, element: HTMLElement): void {
+  const original = drag.animationStyles.get(element);
+  if (!original) {
+    return;
+  }
+
+  element.style.transform = original.transform;
+  element.style.transition = original.transition;
+  element.style.willChange = original.willChange;
+  drag.animationStyles.delete(element);
+  drag.animationTimers.delete(element);
+}
+
+function clearLayoutAnimationStyles(drag: LayoutDragState): void {
+  for (const timer of drag.animationTimers.values()) {
+    window.clearTimeout(timer);
+  }
+
+  for (const element of drag.animationStyles.keys()) {
+    restoreLayoutAnimationStyle(drag, element);
+  }
+}
+
+function buildLayoutSwapGuideLine(flow: LayoutFlow, targetRect: HighlightRect): HighlightRect {
+  if (flow === "horizontal") {
+    return {
+      x: Math.round(targetRect.x + targetRect.width / 2 - 1),
+      y: Math.round(targetRect.y),
+      width: 2,
+      height: Math.max(12, Math.round(targetRect.height))
+    };
+  }
+
+  return {
+    x: Math.round(targetRect.x),
+    y: Math.round(targetRect.y + targetRect.height / 2 - 1),
+    width: Math.max(12, Math.round(targetRect.width)),
+    height: 2
+  };
+}
+
+function buildLayoutAlignmentLines(
+  flow: LayoutFlow,
+  selectedRect: HighlightRect,
+  targetRect: HighlightRect | null,
+  lineRect: HighlightRect
+): HighlightRect[] {
+  const lines: HighlightRect[] = [];
+  const target = targetRect ?? selectedRect;
+
+  if (flow === "horizontal") {
+    const insertionX = lineRect.x + lineRect.width / 2;
+    lines.push(verticalGuide(insertionX));
+    lines.push(horizontalGuide(target.y + target.height / 2));
+    lines.push(horizontalGuide(selectedRect.y + selectedRect.height / 2));
+  } else {
+    const insertionY = lineRect.y + lineRect.height / 2;
+    lines.push(horizontalGuide(insertionY));
+    lines.push(verticalGuide(target.x + target.width / 2));
+    lines.push(verticalGuide(selectedRect.x + selectedRect.width / 2));
+  }
+
+  return dedupeGuideLines(lines);
+}
+
+function verticalGuide(x: number): HighlightRect {
+  return {
+    x: Math.round(clampNumber(x, 0, window.innerWidth)),
+    y: 0,
+    width: 1,
+    height: window.innerHeight
+  };
+}
+
+function horizontalGuide(y: number): HighlightRect {
+  return {
+    x: 0,
+    y: Math.round(clampNumber(y, 0, window.innerHeight)),
+    width: window.innerWidth,
+    height: 1
+  };
+}
+
+function dedupeGuideLines(lines: HighlightRect[]): HighlightRect[] {
+  const result: HighlightRect[] = [];
+
+  for (const line of lines) {
+    const duplicate = result.some((existing) => {
+      const sameOrientation = existing.width === line.width && existing.height === line.height;
+      return sameOrientation && Math.abs(existing.x - line.x) <= 1 && Math.abs(existing.y - line.y) <= 1;
+    });
+
+    if (!duplicate) {
+      result.push(line);
+    }
+  }
+
+  return result;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+function readLayoutFlow(parent: HTMLElement): LayoutFlow {
+  const style = window.getComputedStyle(parent);
+
+  if (style.display === "flex" || style.display === "inline-flex") {
+    return style.flexDirection.startsWith("column") ? "vertical" : "horizontal";
+  }
+
+  if (style.display === "grid" || style.display === "inline-grid") {
+    return style.gridAutoFlow.includes("column") ? "vertical" : "horizontal";
+  }
+
+  return "vertical";
+}
+
+function getLayoutChildren(parent: HTMLElement): HTMLElement[] {
+  return Array.from(parent.children).filter((child): child is HTMLElement => {
+    return child instanceof HTMLElement && !child.id.startsWith("web-visual-ai-editor-");
+  });
+}
+
 function showRecords(runtime: EditorRuntime): void {
+  clearLayoutDrag(runtime);
+  runtime.quickCommentTarget = null;
   runtime.panelView = "records";
   runtime.interactionMode = "browse";
   runtime.measurementMode = "off";
@@ -914,7 +1745,10 @@ function updateUi(runtime: EditorRuntime): void {
     hoverRect: runtime.hoveredElement ? rectFromElement(runtime.hoveredElement) : null,
     selectedRect: runtime.selectedElement ? rectFromElement(runtime.selectedElement) : null,
     selectedElement: runtime.selectedElement,
-    measurement: buildOverlayMeasurement(runtime)
+    measurement: buildOverlayMeasurement(runtime),
+    layoutMode: runtime.interactionMode === "auto-layout",
+    layoutGuide: runtime.layoutGuide,
+    commentPins: buildCommentPins(runtime)
   });
 
   runtime.panel?.update({
@@ -933,6 +1767,7 @@ function updateUi(runtime: EditorRuntime): void {
     filterStatus: runtime.filterStatus,
     filterRange: runtime.filterRange,
     measurement: runtime.currentMeasurements,
+    layoutContext: runtime.currentLayoutContext,
     measurementMode: runtime.measurementMode,
     attachMeasurements: runtime.attachMeasurements,
     similarMatchLevel: runtime.similarMatchLevel,
@@ -940,8 +1775,32 @@ function updateUi(runtime: EditorRuntime): void {
     similarTotalMatched: runtime.similarTotalMatched,
     similarTruncated: runtime.similarTruncated,
     similarElements: runtime.similarSnapshots,
-    applyToSimilar: runtime.applyToSimilar
+    applyToSimilar: runtime.applyToSimilar,
+    quickCommentTarget: runtime.quickCommentTarget
   });
+}
+
+function buildLayoutComment(intent: LayoutIntent): string {
+  const directionLabels = {
+    none: "",
+    horizontal: "改为横向排列",
+    vertical: "改为纵向排列"
+  } satisfies Record<LayoutIntent["direction"], string>;
+  const alignmentLabels = {
+    none: "",
+    start: "起点对齐",
+    center: "居中对齐",
+    end: "终点对齐",
+    "space-between": "两端等距"
+  } satisfies Record<LayoutIntent["alignment"], string>;
+  const parts = [
+    directionLabels[intent.direction],
+    alignmentLabels[intent.alignment],
+    intent.gap ? `目标间距 ${intent.gap}` : "",
+    intent.note
+  ].filter(Boolean);
+
+  return parts.length > 0 ? `布局意图：${parts.join("；")}` : "布局意图：请优化父容器布局。";
 }
 
 function buildOverlayMeasurement(runtime: EditorRuntime): MeasurementOverlay | null {
@@ -972,6 +1831,38 @@ function buildOverlayMeasurement(runtime: EditorRuntime): MeasurementOverlay | n
     size: runtime.currentMeasurements.size,
     pair
   };
+}
+
+function buildCommentPins(runtime: EditorRuntime): CommentPinOverlay[] {
+  const grouped = new Map<string, { count: number; element: Element }>();
+
+  for (const record of runtime.session.records) {
+    if (!record.element || !record.comment.trim()) {
+      continue;
+    }
+
+    const existing = grouped.get(record.element.selector);
+    if (existing) {
+      existing.count += 1;
+      continue;
+    }
+
+    const element = document.querySelector(record.element.selector);
+    if (!element) {
+      continue;
+    }
+
+    grouped.set(record.element.selector, {
+      count: 1,
+      element
+    });
+  }
+
+  return Array.from(grouped.entries()).map(([selector, item]) => ({
+    id: selector,
+    count: item.count,
+    rect: rectFromElement(item.element)
+  }));
 }
 
 function rectFromElement(element: Element) {
