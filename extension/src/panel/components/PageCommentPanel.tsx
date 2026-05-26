@@ -14,7 +14,7 @@ type PageCommentPanelProps = {
 };
 
 export function PageCommentPanel({ editMode, onSave, onCancelEdit }: PageCommentPanelProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(Boolean(editMode));
   const bodyId = useId();
 
   useEffect(() => {
@@ -25,15 +25,15 @@ export function PageCommentPanel({ editMode, onSave, onCancelEdit }: PageComment
 
   if (!expanded) {
     return (
-      <InspectorSection as="section" className="wvaie-page-comment-collapsed">
+      <InspectorSection as="section" className="wvaie-page-comment-collapsed" hover>
         <button
           aria-controls={bodyId}
           aria-expanded={false}
           type="button"
-          className="wvaie-button wvaie-button-text"
+          className="wvaie-page-comment-trigger"
           onClick={() => setExpanded(true)}
         >
-          + 添加页面评论
+          描述页面整体的问题或建议
         </button>
       </InspectorSection>
     );
@@ -54,9 +54,6 @@ export function PageCommentPanel({ editMode, onSave, onCancelEdit }: PageComment
         </button>
       </div>
       <div className="wvaie-page-comment-body" id={bodyId}>
-        <p className="wvaie-help-text">
-          页面级评论不依赖特定元素，用于描述整体布局、节奏、风格等问题。
-        </p>
         <CommentEditor
           disabled={false}
           editMode={editMode}

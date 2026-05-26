@@ -53,6 +53,8 @@ export type OverlayState = {
 };
 
 const OVERLAY_HOST_ID = "web-visual-ai-editor-overlay-root";
+const COMMENT_PIN_SIZE = 26;
+const COMMENT_PIN_OFFSET = COMMENT_PIN_SIZE / 2;
 
 export function createOverlayRoot(
   options: { onLayoutDragStart?(event: LayoutDragStart): void } = {}
@@ -310,19 +312,19 @@ export function createOverlayRoot(
       top: 0;
       left: 0;
       display: grid;
-      width: 34px;
-      height: 34px;
+      width: ${COMMENT_PIN_SIZE}px;
+      height: ${COMMENT_PIN_SIZE}px;
       place-items: center;
       border: 2px solid rgba(255, 255, 255, 0.94);
       border-radius: 50%;
       background: #ec35c8;
       color: #fff;
-      font: 800 15px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font: 800 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       pointer-events: none;
       box-shadow:
-        0 0 0 2px rgba(217, 70, 239, 0.34),
-        0 0 24px rgba(236, 53, 200, 0.54),
-        0 10px 24px rgba(0, 0, 0, 0.28);
+        0 0 0 1px rgba(217, 70, 239, 0.3),
+        0 0 18px rgba(236, 53, 200, 0.46),
+        0 8px 18px rgba(0, 0, 0, 0.24);
     }
 
     .wvaie-box-pair-a {
@@ -564,8 +566,8 @@ function renderCommentPins(layer: HTMLElement, pins: CommentPinOverlay[]): void 
     const bubble = document.createElement("div");
     bubble.className = "wvaie-comment-pin";
     bubble.textContent = String(Math.min(pin.count, 99));
-    const x = clamp(pin.rect.x + pin.rect.width - 17, 4, window.innerWidth - 38);
-    const y = clamp(pin.rect.y - 17, 4, window.innerHeight - 38);
+    const x = clamp(pin.rect.x + pin.rect.width - COMMENT_PIN_OFFSET, 4, window.innerWidth - COMMENT_PIN_SIZE - 4);
+    const y = clamp(pin.rect.y - COMMENT_PIN_OFFSET, 4, window.innerHeight - COMMENT_PIN_SIZE - 4);
     bubble.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     layer.appendChild(bubble);
   }

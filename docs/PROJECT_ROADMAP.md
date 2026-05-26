@@ -29,9 +29,9 @@ Web Visual AI Editor 是一个面向 AI 编程和前端页面改稿场景的浏�
 3. V0.3 评论增强代码实现已完成，已通过 Chrome 手动验收。
 4. V0.4 标尺测距代码实现已完成（含尺寸/视口距离/父容器距离/双元素测距/AI Prompt 测距段落），已通过 Chrome 148 pipe 自动烟测的数据闭环，等待 Chrome 手动视觉与交互验收。
 5. V0.4 实现计划已执行完毕：`docs/superpowers/plans/2026-05-23-v0.4-ruler.md`。
-6. V0.5 共享元素代码实现已完成（相似识别、批量确认、批量高亮、JSON/Prompt 输出），通过当前质量门禁与 Chrome 148 pipe 自动烟测，等待 Chrome 手动视觉与交互验收。
-7. V0.5.5 UI Refresh 代码整合已完成（Sketch-style 哑光深色 Inspector、浮动工具栏、胶囊控件/徽标、红粉 Overlay 与键盘回归修复），通过质量门禁与 Chrome 148 pipe 自动烟测，等待 Chrome 手动视觉与交互验收。
-8. V0.6 自动布局辅助代码实现已完成（父容器布局读取、布局意图保存、JSON/Prompt 输出），通过 `npm run verify`，等待 Chrome 手动交互验收。
+6. V0.5 共享元素代码实现已完成（相似识别、批量确认、批量高亮、长 selector 裁切、JSON/Prompt 输出），通过当前质量门禁与 Chrome 148 pipe 自动烟测，等待 Chrome 手动视觉与交互验收。
+7. V0.5.5 UI Refresh 代码整合已完成（Vibma 选中画板对齐的紧凑顶部胶囊工具栏、383px 深色 Inspector、Panel 顶部功能条、8px 深灰控件、正式浏览器图标、Packages 打包流程、红粉 Overlay 与键盘回归修复），通过质量门禁，等待 Chrome 手动视觉与交互验收。
+8. V0.6 自动布局辅助代码实现已完成（父容器布局读取、有效 flex/grid 场景展开、无效场景降级提示、布局意图保存、JSON/Prompt 输出），通过 `npm run verify`，等待 Chrome 手动交互验收。
 9. V0.7 字体读取与切换代码实现已完成（字体字段读取、字体预览、`fontChanges`、JSON/Prompt 输出），通过 `npm run verify` 与 Chrome headless 页面内烟测，等待 Chrome 手动交互验收。
 10. V0.8 直接操作基础层代码实现已完成（自动布局拖手、同父容器换位、参考线反馈、共享元素开关、本地字体入口、JSON 0.8），通过 `npm run verify`，等待 Chrome 手动交互验收。
 
@@ -361,7 +361,8 @@ JSON 和 Prompt 是产品的关键交接协议。插件最终应该让修改意�
 1. 主面板、记录行、主要按钮和 Overlay 符合 `docs/V0.5.5_UI_REFRESH_SPEC.md` 的 Sketch-style matte inspector 视觉基线。
 2. 页面评论和元素评论可独立填写、编辑且标签关联正确。
 3. 删除确认框支持键盘聚焦、Tab 循环与 `Escape` 关闭。
-4. V0.4 测距和 V0.5 共享范围主流程无视觉升级导致的回归。
+4. 相似元素长 selector、评论保存按钮和顶部工具区不出现溢出或异常换行。
+5. V0.4 测距和 V0.5 共享范围主流程无视觉升级导致的回归。
 
 ### V0.6：自动布局
 
@@ -529,5 +530,5 @@ JSON 和 Prompt 是产品的关键交接协议。插件最终应该让修改意�
 当前工程已经推进到 V0.8 代码完成阶段。下一步：
 
 1. 在 Chrome 中对 V0.4 测距、V0.5 共享元素、V0.5.5 UI Refresh、V0.6/V0.8 自动布局、V0.7/V0.8 字体读取进行联合手动验收。
-2. 核对页面级评论与元素评论隔离、删除确认框键盘流程、自动布局拖手换位、退出恢复、共享元素开关、字体预览、`fontChanges` JSON 和 Prompt 输出，确认 UI 与数据升级未破坏既有能力。
+2. 核对页面级评论与元素评论隔离、删除确认框键盘流程、自动布局拖手换位、退出恢复、共享元素开关、相似元素长 selector 裁切、浏览器图标、`Packages/web-visual-ai-editor-v0.8.0.zip` 包、字体预览、`fontChanges` JSON 和 Prompt 输出，确认 UI 与数据升级未破坏既有能力。
 3. 验收通过后，再评估 V1.0 收口范围。

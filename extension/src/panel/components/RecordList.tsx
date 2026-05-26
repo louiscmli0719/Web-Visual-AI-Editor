@@ -65,8 +65,7 @@ export function RecordList({
       )}
       {records.length === 0 ? (
         <InspectorSection className="wvaie-empty-state">
-          <h2>还没有修改记录</h2>
-          <p>回到属性页，选择元素后调整样式或填写修改说明。</p>
+          <p>还没有修改记录。</p>
         </InspectorSection>
       ) : filteredRecords.length === 0 ? (
         <p className="wvaie-inline-empty">没有符合当前筛选条件的记录。</p>
@@ -89,7 +88,7 @@ export function RecordList({
                     批量 × {record.sharedGroup.totalMatched}
                   </StatusBadge>
                 )}
-                {record.sharedGroup?.truncated && <StatusBadge variant="warning">已截断</StatusBadge>}
+              {record.sharedGroup?.truncated && <StatusBadge variant="warning">已截断</StatusBadge>}
               </div>
               {record.comment && <p className="wvaie-record-comment">{record.comment}</p>}
               <p className="wvaie-record-selector">{record.element ? record.element.selector : "页面评论"}</p>

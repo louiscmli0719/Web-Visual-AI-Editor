@@ -17,8 +17,8 @@ export type QuickCommentPopoverProps = {
   onSave(comment: string, metadata: RecordMetadata): void;
 };
 
-const POPOVER_WIDTH = 304;
-const POPOVER_HEIGHT = 248;
+const POPOVER_WIDTH = 302;
+const POPOVER_HEIGHT = 253;
 const VIEWPORT_GAP = 12;
 
 export function QuickCommentPopover({ target, onCancel, onSave }: QuickCommentPopoverProps) {
@@ -54,24 +54,10 @@ export function QuickCommentPopover({ target, onCancel, onSave }: QuickCommentPo
       className="wvaie-quick-comment"
       style={{ left: `${position.left}px`, top: `${position.top}px` }}
     >
-      <div className="wvaie-quick-comment-pin" aria-hidden="true">
-        1
-      </div>
-      <div className="wvaie-quick-comment-head">
-        <div>
-          <p className="wvaie-quick-comment-kicker">元素评论</p>
-          <h2>{target.element.tagName.toLowerCase()}</h2>
-        </div>
-        <button className="wvaie-icon-button" type="button" aria-label="关闭评论弹窗" onClick={onCancel}>
-          ×
-        </button>
-      </div>
-      <p className="wvaie-quick-comment-selector" title={target.element.selector}>
-        {target.element.selector}
+      <h2 className="wvaie-quick-comment-title">评论</h2>
+      <p className="wvaie-quick-comment-current" title={target.element.selector}>
+        当前元素：{target.element.selector}
       </p>
-      <label className="wvaie-comment-label" htmlFor={commentId}>
-        评论内容
-      </label>
       <textarea
         className="wvaie-textarea wvaie-quick-comment-textarea"
         id={commentId}
@@ -81,7 +67,7 @@ export function QuickCommentPopover({ target, onCancel, onSave }: QuickCommentPo
             handleSave();
           }
         }}
-        placeholder="写下这个元素要怎么改。"
+        placeholder="输入评论内容"
         ref={textareaRef}
         rows={3}
         value={comment}
@@ -112,10 +98,7 @@ export function QuickCommentPopover({ target, onCancel, onSave }: QuickCommentPo
           ))}
         </select>
       </div>
-      <div className="wvaie-actions">
-        <button className="wvaie-button" type="button" onClick={onCancel}>
-          取消
-        </button>
+      <div className="wvaie-quick-comment-actions">
         <button className="wvaie-button wvaie-button-primary" disabled={!canSave} type="button" onClick={handleSave}>
           保存评论
         </button>

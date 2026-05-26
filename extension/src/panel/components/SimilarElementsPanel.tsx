@@ -56,7 +56,8 @@ export function SimilarElementsPanel({
           {hasSimilar ? (
             <>
             <p className="wvaie-similar-feature">
-              匹配特征 <code>{primaryFeature}</code>
+              <span>匹配特征</span>
+              <code title={primaryFeature}>{primaryFeature}</code>
               {truncated && <span className="wvaie-similar-truncated">已截断</span>}
             </p>
             <label className="wvaie-shared-switch">
@@ -85,6 +86,7 @@ export function SimilarElementsPanel({
                     onFocus={() => onHoverSimilar(index)}
                     onMouseEnter={() => onHoverSimilar(index)}
                     onMouseLeave={() => onHoverSimilar(null)}
+                    title={element.selector}
                     type="button"
                   >
                     {element.selector}

@@ -19,7 +19,7 @@ V0.1 使用 Chrome Extension Manifest V3 实现一个无需后端服务的本地
 3. V0.3 评论增强已完成代码实现，已通过 Chrome 手动验收。
 4. V0.4 标尺测距已完成代码实现，并通过 Chrome 148 pipe 自动烟测的数据闭环，仍待 Chrome 手动视觉与交互验收。
 5. V0.5 共享元素闭环已完成代码实现：相似识别、批量高亮、`sharedGroup` 记录、范围筛选和 Prompt 输出均已接入，并通过 Chrome 148 pipe 自动烟测，等待 Chrome 手动视觉与交互验收。
-6. V0.5.5 UI Refresh 代码整合已完成：Sketch-style 哑光深色 Inspector、Figma 对齐的黑色胶囊浮动工具栏、可拖动 Panel、紧凑记录行与 Overlay 红粉高对比反馈均已接入；已通过 Chrome 148 pipe 自动烟测，等待 Chrome 视觉与键盘回归验收。
+6. V0.5.5 UI Refresh 代码整合已完成：Vibma 选中画板对齐的黑色胶囊浮动工具栏、383px 深色 Inspector、Panel 顶部功能条拖动、紧凑记录行与 Overlay 红粉高对比反馈均已接入；已通过 `npm run verify`，等待 Chrome 视觉与键盘回归验收。
 7. V0.6 自动布局辅助已完成代码实现：直接父容器布局读取、布局意图保存、JSON `0.6` 和 Prompt 布局段已接入；`npm run verify` 已通过，等待 Chrome 手动交互验收。
 8. V0.7 字体读取与切换已完成代码实现：`fontFamily` / `letterSpacing` 字段读取与预览、`fontChanges`、JSON `0.7` 和 Prompt 字体段已接入；`npm run verify` 与 Chrome headless 页面内烟测已通过，等待 Chrome 手动交互验收。
 9. V0.8 直接操作基础层已完成代码实现：顶部“自动布局”模式、中部粉色拖拽横条、基于鼠标命中目标的同父容器精准交换预览、交换位移动画、紫色虚线参考线反馈、共享元素开关和本地字体读取入口已接入；JSON 升级为 `0.8`，等待 Chrome 手动交互验收。
@@ -76,6 +76,7 @@ extension/
       InspectorSection.tsx        # V0.5.5 新增
       StatusBadge.tsx             # V0.5.5 新增
       FloatingToolbar.tsx         # V0.5.5 新增
+      PanelUtilityBar.tsx         # V0.5.5 新增，Panel 顶部功能条
       ImportExportBar.tsx
     shared/
       types.ts
@@ -92,6 +93,11 @@ extension/
 ```text
 extension/dist/
   manifest.json
+  icons/
+    icon-16.png
+    icon-32.png
+    icon-48.png
+    icon-128.png
   background/service-worker.js
   content/index.js
 ```
@@ -106,30 +112,41 @@ npm run verify
 说明：
 
 1. `manifest.json` 仍放在 `extension/` 根目录，构建时复制到 `dist/manifest.json`。
-2. `background/service-worker.ts` 已接入插件图标点击和 content script 注入。
-3. `content/index.ts` 已提供编辑模式启停、hover、点击选中、顶部评论模式、评论保存（含 V0.3 元数据）、记录定位、JSON 导入导出、Prompt 复制、样式快照、临时预览、样式差异保存、记录编辑、记录删除、状态切换、筛选状态管理。
-4. `content/style-inspector.ts` 暴露 `STYLE_PROPERTY_DEFINITIONS` 与 `readStyleSnapshot(element)`，按白名单顺序返回 computed style。
-5. `content/style-preview.ts` 暴露 `createStylePreviewManager()`，使用 `WeakMap` 保存元素原始 inline style，支持 `apply` / `reset` / `resetAll`。
-6. `content/session-store.ts` 管理评论、测距、共享范围、布局意图与字体修改记录；导出 V0.8，兼容导入 V0.1 至 V0.8，并在新增、编辑、导入边界统一清除页面评论的元素专属字段。
-7. `shared/record-metadata.ts` 是 V0.3 类型/优先级/状态/交互态选项的单一来源，提供中文映射和默认值。
-8. React Panel 已接入选中元素信息、样式编辑、页面/元素评论、快速评论弹窗、记录列表、ConfirmDialog、导入导出和复制 Prompt；V0.4 接入测距，V0.5 接入相似元素折叠区块、批量复选框与范围筛选，V0.5.5 使用 `InspectorSection` / `StatusBadge` / `FloatingToolbar` 统一主界面，V0.6 接入 `LayoutPanel` 保存布局意图，V0.7 在 `StyleEditorPanel` 的“字体 / 排版”分组补齐字体字段，V0.8 在 `FloatingToolbar`、`SimilarElementsPanel` 与 `StyleEditorPanel` 接入自动布局、共享开关和本地字体入口。
-9. `content/measurement.ts` 是 V0.4 纯函数模块：`readSize`、`readViewportDistances`、`readParentDistances`、`computePairMeasurement`，接受 DOMRect-like 输入，输出取整数值。
-10. `overlay/overlay-root.ts` 在 V0.4 扩展了 measurement layer：渲染 size label（右上角，自动避让视口）、pair distance lines（水平/垂直）、跨视口紫色虚线参考线以及距离数值；V0.5.5 直接复用该 Shadow DOM 标签作为元素标签，并使用红粉高对比反馈；V0.8 新增紫色自动布局选中态、中部粉色拖拽横条、目标框、紫色虚线参考线和交换位置标签；评论模式会按元素记录渲染粉紫编号点，不向宿主页面注入全局样式。
-11. `content/similar-elements.ts` 实现三级相似识别与 50 个目标截断；`overlay-root.ts` 渲染 3 秒批量虚线高亮。
-12. `content/layout-inspector.ts` 读取选中元素直接父容器的 selector、display、flex/grid 常见对齐字段、gap、当前子元素序号和兄弟总数。
-13. `extension/test-pages/basic.html` 额外包含 V0.5 卡片、按钮组与列表项批量目标；V0.6 可复用按钮组等 flex 场景验收布局辅助，V0.7 可复用样式编辑器按钮、卡片标题等文本元素验收字体字段，V0.8 可复用按钮组验收自动布局拖手换位。
+2. `manifest.json` 已声明浏览器工具栏图标和扩展图标，图标源文件位于 `extension/public/icons/`，构建时由 Vite 复制到 `dist/icons/`。
+3. `background/service-worker.ts` 已接入插件图标点击和 content script 注入。
+4. `content/index.ts` 已提供编辑模式启停、hover、点击选中、顶部评论模式、评论保存（含 V0.3 元数据）、记录定位、JSON 导入导出、Prompt 复制、样式快照、临时预览、样式差异保存、记录编辑、记录删除、状态切换、筛选状态管理。
+5. `content/style-inspector.ts` 暴露 `STYLE_PROPERTY_DEFINITIONS` 与 `readStyleSnapshot(element)`，按白名单顺序返回 computed style。
+6. `content/style-preview.ts` 暴露 `createStylePreviewManager()`，使用 `WeakMap` 保存元素原始 inline style，支持 `apply` / `reset` / `resetAll`。
+7. `content/session-store.ts` 管理评论、测距、共享范围、布局意图与字体修改记录；导出 V0.8，兼容导入 V0.1 至 V0.8，并在新增、编辑、导入边界统一清除页面评论的元素专属字段。
+8. `shared/record-metadata.ts` 是 V0.3 类型/优先级/状态/交互态选项的单一来源，提供中文映射和默认值。
+9. React Panel 已接入选中元素信息、样式编辑、页面/元素评论、快速评论弹窗、记录列表、ConfirmDialog、导入导出和复制 Prompt；V0.4 接入测距，V0.5 接入相似元素折叠区块、批量复选框与范围筛选，V0.5.5 使用 `InspectorSection` / `StatusBadge` / `FloatingToolbar` / `PanelUtilityBar` 统一主界面，V0.6 接入 `LayoutPanel` 保存布局意图，V0.7 在 `StyleEditorPanel` 的“字体 / 排版”分组补齐字体字段，V0.8 在 `FloatingToolbar`、`SimilarElementsPanel` 与 `StyleEditorPanel` 接入自动布局、共享开关和本地字体入口；相似元素长匹配特征和 selector 在 Panel 内使用单行裁切，完整内容通过原生 title 查看。
+10. `content/measurement.ts` 是 V0.4 纯函数模块：`readSize`、`readViewportDistances`、`readParentDistances`、`computePairMeasurement`，接受 DOMRect-like 输入，输出取整数值。
+11. `overlay/overlay-root.ts` 在 V0.4 扩展了 measurement layer：渲染 size label（右上角，自动避让视口）、pair distance lines（水平/垂直）、跨视口紫色虚线参考线以及距离数值；V0.5.5 直接复用该 Shadow DOM 标签作为元素标签，并使用红粉高对比反馈；V0.8 新增紫色自动布局选中态、中部粉色拖拽横条、目标框、紫色虚线参考线和交换位置标签；评论模式会按元素记录渲染粉紫编号点，不向宿主页面注入全局样式。
+12. `content/similar-elements.ts` 实现三级相似识别与 50 个目标截断；`overlay-root.ts` 渲染 3 秒批量虚线高亮。
+13. `content/layout-inspector.ts` 读取选中元素直接父容器的 selector、display、flex/grid 常见对齐字段、gap、当前子元素序号和兄弟总数。
+14. `extension/test-pages/basic.html` 额外包含 V0.5 卡片、按钮组与列表项批量目标；V0.6 可复用按钮组等 flex 场景验收布局辅助，V0.7 可复用样式编辑器按钮、卡片标题等文本元素验收字体字段，V0.8 可复用按钮组验收自动布局拖手换位。
+
+打包命令：
+
+```bash
+cd extension
+npm run package
+```
+
+该命令会先执行构建，再把 `extension/dist/` 压缩为仓库根目录 `Packages/web-visual-ai-editor-v0.8.0.zip`，用于提交到 Git 或分发给人工验收。
 
 ## 2.2 V0.5.5 面板设计系统与可访问性
 
-1. `panel/panel-root.tsx` 是 Shadow DOM 样式唯一落点，使用 `rgba(18, 18, 18, 0.97)` 哑光深色基底、深灰胶囊控件、弱边界与蓝紫强调色，避免污染宿主页面。
+1. `panel/panel-root.tsx` 是 Shadow DOM 样式唯一落点，使用 `rgba(24, 24, 24, 0.9)` 深色毛玻璃基底、深灰 8px 控件、弱边界与蓝紫强调色，避免污染宿主页面。
 2. `InspectorSection` 提供语义容器包装（`section` / `article` / `footer`），`StatusBadge` 在可点击场景渲染原生 `button`，记录范围高亮可通过键盘触发。
 3. `CommentEditor` 使用 React `useId()` 生成表单关联 ID，页面评论与元素评论同时存在时不会产生重复 `id`。
 4. `ConfirmDialog` 初始聚焦取消按钮、支持 `Escape` 关闭与 Tab 循环，并在关闭后恢复触发元素焦点。
 5. 页面评论编辑期间隐藏元素评论保存入口，防止同一 `editingRecord` 被错误更新为元素范围记录。
-6. `panel-root.tsx` 绑定 Panel 标题栏 Pointer Events 拖动逻辑：默认右侧定位不变，用户拖动后改用 `left/top` 定位，并在拖动与窗口 resize 时限制在视口 8px 安全边距内。
+6. `panel-root.tsx` 绑定 Panel 顶部功能条 Pointer Events 拖动逻辑：默认右侧定位不变，用户拖动后改用 `left/top` 定位，并在拖动与窗口 resize 时限制在视口 8px 安全边距内。
 7. `StyleEditorPanel` 的长度输入采用“数值 + 单位”胶囊控件，`px` 和 `pt` 之间自动换算；`StyleChange.unit` 允许记录长度单位，便于导出和 Prompt 保留修改意图。
 8. `QuickCommentPopover` 使用 Panel Shadow DOM 渲染页面内固定定位弹窗：顶部工具栏进入评论模式后，点击宿主元素会选中元素、弹出评论框，保存后复用既有 `addEditRecord` 流程，不新增 JSON 字段。
 9. `FloatingToolbar` 按 Figma 顶栏结构渲染：浏览、选择、测量、评论、自动布局为 icon-only 模式按钮；记录为图标 + 文案 + 数量徽标；关闭按钮独立在分隔线后；导入、导出 JSON 与复制 Prompt 继续由 `ImportExportBar` 承载。
+10. `PanelUtilityBar` 按 Figma 样式面板顶部结构渲染：属性/记录切换、共享元素开关与重置按钮在同一行，并作为 Panel 拖动手柄。
 
 ## 3. Manifest V3 权限
 
@@ -242,7 +259,7 @@ Panel 根节点：
 1. 默认固定在页面右侧。
 2. 有独立 Shadow DOM 样式。
 3. 面板区域需要排除元素选择，避免用户选中插件 UI。
-4. 标题栏可作为拖动手柄，拖动位置只属于当前页面会话，不进入业务数据。
+4. 顶部功能条可作为拖动手柄，拖动位置只属于当前页面会话，不进入业务数据。
 
 ## 6. 消息流
 

@@ -10,6 +10,7 @@ import { MeasurementPanel, type MeasurementMode } from "./components/Measurement
 import { SimilarElementsPanel } from "./components/SimilarElementsPanel";
 import { PageCommentPanel } from "./components/PageCommentPanel";
 import { LayoutPanel } from "./components/LayoutPanel";
+import { PanelUtilityBar } from "./components/PanelUtilityBar";
 import { QuickCommentPopover, type QuickCommentTarget } from "./components/QuickCommentPopover";
 import type {
   EditRecord,
@@ -61,6 +62,14 @@ type AppProps = {
   state: PanelState;
 };
 
+function hasActionableLayoutContext(context: LayoutContext | null): boolean {
+  return (
+    context !== null &&
+    ["flex", "inline-flex", "grid", "inline-grid"].includes(context.display) &&
+    context.siblingCount > 1
+  );
+}
+
 export function App({ handlers, state }: AppProps) {
   const [deleteTarget, setDeleteTarget] = useState<EditRecord | null>(null);
   const hasSelection = state.selectedElement !== null;
@@ -68,8 +77,7 @@ export function App({ handlers, state }: AppProps) {
     (value) => typeof value === "string" && value.length > 0
   );
   const isMeasuring = state.interactionMode === "measure";
-  const isAutoLayout = state.interactionMode === "auto-layout";
-  const isCommenting = state.interactionMode === "comment";
+  const showLayoutPanel = state.interactionMode === "auto-layout" || hasActionableLayoutContext(state.layoutContext);
 
   function handleDeleteConfirm() {
     if (deleteTarget) {
@@ -94,46 +102,35 @@ export function App({ handlers, state }: AppProps) {
 
   return (
     <>
-      <FloatingToolbar
-        interactionMode={state.interactionMode}
-        onAutoLayout={handlers.onAutoLayoutMode}
-        onBrowse={handlers.onBrowseMode}
-        onCommentMode={handlers.onCommentMode}
-        onClose={handlers.onClose}
-        onMeasure={handlers.onEnterMeasurementMode}
-        onSelectElement={handlers.onSelectMode}
-        onShowRecords={handlers.onShowRecords}
-        recordCount={state.records.length}
-        recordsActive={state.panelView === "records"}
-      />
-      <main className="wvaie-panel" hidden={!state.enabled}>
-        <header className="wvaie-header" title="拖动标题栏移动面板">
-          <div>
-            <h1 className="wvaie-header-title">Web Visual AI Editor</h1>
-            <p className="wvaie-header-mode">
-              {isMeasuring ? "测距模式" : isAutoLayout ? "Auto Layout" : isCommenting ? "Comment" : "Inspector"}
-            </p>
-          </div>
-          <span className="wvaie-header-version">V0.8</span>
-        </header>
-        <nav className="wvaie-panel-tabs" aria-label="面板页面">
-          <button
-            aria-current={state.panelView === "inspector" ? "page" : undefined}
-            className={state.panelView === "inspector" ? "wvaie-tab-active" : ""}
-            onClick={handlers.onShowInspector}
-            type="button"
-          >
-            属性
-          </button>
-          <button
-            aria-current={state.panelView === "records" ? "page" : undefined}
-            className={state.panelView === "records" ? "wvaie-tab-active" : ""}
-            onClick={handlers.onShowRecords}
-            type="button"
-          >
-            记录 <span className="wvaie-count">{state.records.length}</span>
-          </button>
-        </nav>
+      {state.enabled && (
+        <FloatingToolbar
+          interactionMode={state.interactionMode}
+          onAutoLayout={handlers.onAutoLayoutMode}
+          onBrowse={handlers.onBrowseMode}
+          onCommentMode={handlers.onCommentMode}
+          onClose={handlers.onClose}
+          onMeasure={handlers.onEnterMeasurementMode}
+          onSelectElement={handlers.onSelectMode}
+          onShowRecords={handlers.onShowRecords}
+          recordCount={state.records.length}
+          recordsActive={state.panelView === "records"}
+        />
+      )}
+      <main
+        className={`wvaie-panel ${state.panelView === "records" ? "wvaie-panel-records" : "wvaie-panel-style"}`}
+        hidden={!state.enabled}
+      >
+        <PanelUtilityBar
+          applyToSimilar={state.applyToSimilar}
+          onRefresh={handlers.onResetStylePreview}
+          onShowInspector={handlers.onShowInspector}
+          onShowRecords={handlers.onShowRecords}
+          onToggleApplyToSimilar={handlers.onToggleApplyToSimilar}
+          recordCount={state.records.length}
+          recordsActive={state.panelView === "records"}
+          similarAvailable={state.similarElements.length > 0}
+          similarCount={state.similarTotalMatched}
+        />
         {state.statusMessage && <p className="wvaie-status-message" role="status">{state.statusMessage}</p>}
         <div className="wvaie-scroll">
           {state.panelView === "records" ? (
@@ -181,11 +178,16 @@ export function App({ handlers, state }: AppProps) {
                   truncated={state.similarTruncated}
                 />
               )}
-              <LayoutPanel
-                context={state.layoutContext}
-                hasSelection={hasSelection}
-                onSave={handlers.onSaveLayoutIntent}
-              />
+              {showLayoutPanel && (
+                <LayoutPanel
+                  context={state.layoutContext}
+                  hasSelection={hasSelection}
+                  onSave={handlers.onSaveLayoutIntent}
+                  spacingDraft={state.styleDraft}
+                  spacingSnapshot={state.selectedStyleSnapshot}
+                  onStyleChange={handlers.onStyleDraftChange}
+                />
+              )}
               {isMeasuring ? (
                 <MeasurementPanel
                   hasSelection={hasSelection}

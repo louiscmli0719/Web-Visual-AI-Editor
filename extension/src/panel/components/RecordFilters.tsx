@@ -24,7 +24,6 @@ export function RecordFilters({
   return (
     <div className="wvaie-record-filters">
       <div className="wvaie-filter-group">
-        <label className="wvaie-filter-label" htmlFor="wvaie-filter-category">类型</label>
         <select
           id="wvaie-filter-category"
           className="wvaie-filter-select"
@@ -41,7 +40,6 @@ export function RecordFilters({
       </div>
 
       <div className="wvaie-filter-group">
-        <label className="wvaie-filter-label" htmlFor="wvaie-filter-status">状态</label>
         <select
           id="wvaie-filter-status"
           className="wvaie-filter-select"
@@ -58,7 +56,6 @@ export function RecordFilters({
       </div>
 
       <div className="wvaie-filter-group">
-        <label className="wvaie-filter-label" htmlFor="wvaie-filter-range">范围</label>
         <select
           id="wvaie-filter-range"
           className="wvaie-filter-select"

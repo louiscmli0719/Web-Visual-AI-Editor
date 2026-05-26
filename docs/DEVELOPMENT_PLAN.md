@@ -2,12 +2,12 @@
 
 ## 1. 当前阶段
 
-当前阶段：V0.1 已通过用户手动验收；V0.2 样式编辑器与 V0.3 评论增强已通过 Chrome 手动验收。V0.4 标尺测距、V0.5 共享元素与 V0.5.5 UI Refresh 代码实现已完成；V0.6 自动布局辅助、V0.7 字体读取/切换与 V0.8 直接操作基础层已完成代码接入，V0.8 已通过 `npm run verify`（96 个单元测试 + TypeScript + Vite build），真实插件图标点击仍待 Chrome 手动验收。
+当前阶段：V0.1 已通过用户手动验收；V0.2 样式编辑器与 V0.3 评论增强已通过 Chrome 手动验收。V0.4 标尺测距、V0.5 共享元素与 V0.5.5 UI Refresh 代码实现已完成；V0.6 自动布局辅助、V0.7 字体读取/切换与 V0.8 直接操作基础层已完成代码接入。2026-05-26 已通过 Vibma 读取 Figma 选中画板并二次对齐工具栏、样式面板、记录面板和评论弹窗的 UI，当前继续压缩顶部按钮比例，把自动布局参数限制为 flex / grid 且有可操作兄弟元素时展开，并修复相似元素长 selector 溢出；正式浏览器图标与 `Packages/` 打包流程已接入。当前已通过 `npm run verify`（104 个单元测试 + TypeScript + Vite build），真实插件图标点击仍待 Chrome 手动验收。
 
 当前目标：
 
 1. 按 `docs/ACCEPTANCE_CRITERIA.md` 联合验收 V0.4 测距、V0.5 共享元素、V0.5.5 UI Refresh、V0.6 自动布局辅助、V0.7 字体读取/切换与 V0.8 直接操作基础层。
-2. 重点回归顶部评论模式就地弹窗、评论编号点、自动布局中部粉色拖拽横条、同父容器精准交换预览、交换位移动画、紫色虚线参考线反馈、测距模式页面内点击 A 取消重选、共享元素开关、字体字段展示、本地字体读取入口、JSON 0.8 导出、Prompt 字体/布局段、页面评论编辑隔离、删除弹窗键盘操作和宿主页面退出恢复。
+2. 重点回归 Figma 对齐后的紧凑顶部胶囊工具栏、浏览器图标、Panel 顶部功能条拖动、共享元素开关、相似元素长 selector 裁切、样式/记录/评论深灰控件、顶部评论模式就地弹窗、评论编号点、自动布局有效场景展开与无效场景降级提示、自动布局中部粉色拖拽横条、同父容器精准交换预览、交换位移动画、紫色虚线参考线反馈、测距模式页面内点击 A 取消重选、字体字段展示、本地字体读取入口、JSON 0.8 导出、Prompt 字体/布局段、页面评论编辑隔离、删除弹窗键盘操作、`Packages/web-visual-ai-editor-v0.8.0.zip` 包和宿主页面退出恢复。
 
 ## 2. 第一阶段目标
 
@@ -464,7 +464,7 @@ V0.6 已经具备可手动验收的代码与构建：
 2. 打开 `extension/test-pages/basic.html`。
 3. 按 `docs/ACCEPTANCE_CRITERIA.md` 复核 V0.4 元素尺寸/视口距离/父容器距离/双元素测距/附加测距复选框/Prompt 测距段落/JSON 兼容。
 4. 验证 V0.5 相似元素检测、批量高亮、共享记录保存、范围筛选、JSON sharedGroup 与 Prompt 作用范围。
-5. 验证 V0.5.5 暗色 Inspector、浮动工具栏、标题栏拖动、长度单位胶囊、删除弹窗键盘焦点和页面评论编辑隔离。
+5. 验证 V0.5.5 暗色 Inspector、浮动工具栏、Panel 顶部功能条拖动、长度单位胶囊、删除弹窗键盘焦点和页面评论编辑隔离。
 6. 验证 V0.6 布局辅助展示、布局意图保存、JSON `layoutContext/layoutIntent` 和 Prompt “布局辅助”段。
 
 V0.4 已完成任务清单：
@@ -527,19 +527,19 @@ V0.4 已完成任务清单：
 
 状态：代码实现完成，`v0.5.5-beta.1` 预览包已准备通过 GitHub Release 分发，已通过 Chrome 148 pipe 自动烟测，等待 Chrome 手动视觉与交互复核后决定正式版本。
 
-- `panel/design-tokens.ts` / `panel-root.tsx`：Sketch-style 哑光深色基础色、蓝紫强调、约 360px 面板、胶囊控件/徽标/焦点/减少动画样式已统一；Panel 标题栏拖动和视口边界约束已接入。
-- `InspectorSection.tsx` / `StatusBadge.tsx` / `FloatingToolbar.tsx`：主面板可复用构件已接入，点击徽标使用原生按钮语义；顶部工具栏已按 Figma「绘管家」节点对齐为黑色胶囊、icon-only 模式按钮、记录文字按钮与蓝色数量徽标。
-- `ElementInfoPanel.tsx` / `StyleEditorPanel.tsx` / `MeasurementPanel.tsx` / `SimilarElementsPanel.tsx` / `CommentEditor.tsx` / `RecordList.tsx` / `ImportExportBar.tsx`：主要内容区已改为紧凑 Inspector 区块和深灰控件；长度输入改为左数值右单位胶囊，默认 `px`、支持 `pt`、清空归零。
+- `panel/design-tokens.ts` / `panel-root.tsx`：Sketch-style 深色基础色、蓝紫强调、383px 面板、8px 深灰控件/徽标/焦点/减少动画样式已统一；Panel 顶部功能条拖动和视口边界约束已接入。
+- `InspectorSection.tsx` / `StatusBadge.tsx` / `FloatingToolbar.tsx` / `PanelUtilityBar.tsx`：主面板可复用构件已接入，点击徽标使用原生按钮语义；顶部工具栏已按 Vibma 选中画板对齐为黑色胶囊、34px icon-only 模式按钮、记录文字按钮与蓝色数量徽标；Panel 顶部功能条承载属性/记录切换、共享元素开关和重置按钮，并已收紧为 42px 级控件高度。
+- `ElementInfoPanel.tsx` / `StyleEditorPanel.tsx` / `MeasurementPanel.tsx` / `SimilarElementsPanel.tsx` / `CommentEditor.tsx` / `RecordList.tsx` / `ImportExportBar.tsx`：主要内容区已改为紧凑 Inspector 区块和深灰控件；长度输入改为左数值右单位胶囊，默认 `px`、支持 `pt`、清空归零；相似元素长匹配特征和 selector 已限制在面板内单行裁切，保存按钮禁止换行。
 - `overlay/overlay-root.ts`：复用现有尺寸标签承载元素标签能力，选择框、测距线、相似高亮与标签配色改为红粉高对比反馈；不引入新的宿主页面样式注入点。
 - `CommentEditor.tsx` / `ConfirmDialog.tsx` / `App.tsx`：修复重复表单 ID、对话框焦点/Escape/Tab 键盘操作，以及页面记录编辑误串元素评论入口的问题。
 
 已完成验证：
 
-1. V0.5.5 当轮 `cd extension && npm run verify` 已通过：89 个单元测试、TypeScript、Vite build；当前 V0.8 已提升到 96 个单元测试并通过同一质量门禁，本次 Figma 工具栏对齐后也已通过 `npm run verify`。
+1. V0.5.5 当轮 `cd extension && npm run verify` 已通过：89 个单元测试、TypeScript、Vite build；当前 V0.8 已提升到 104 个单元测试并通过同一质量门禁，本次 Figma 工具栏比例、自动布局展示规则、浏览器图标、相似元素溢出修复和打包流程调整后也需要通过 `npm run verify` 与 `npm run package`。
 2. 长度单位胶囊保存记录时已按实际新值后缀写入 `StyleChange.unit`，避免切换为 `pt` 后导出仍标记为 `px`。
 3. Chrome 148 pipe 自动烟测已覆盖 `extension/dist` 加载、项目 worker 注入、Panel / Overlay 创建、V0.4 双元素测距、V0.5 批量记录、记录列表、JSON 导出、Panel 拖动、删除弹窗键盘焦点和 Prompt 复制。
 4. Chrome 普通 `--load-extension` / `--disable-extensions-except` 启动参数在当前环境未注册项目扩展；自动化使用 CDP pipe 加载，正式人工验收仍以 Chrome 扩展管理页 `Load unpacked` 为准。
-5. 仍需人工复核真实插件图标点击和整体视觉手感。
+5. 仍需人工复核真实插件图标点击、浏览器工具栏图标展示、相似元素长文本裁切和整体视觉手感。
 
 ### Task V0.6-1 至 V0.6-7：自动布局辅助
 
@@ -550,7 +550,7 @@ V0.4 已完成任务清单：
 1. `types.ts` / `json-schema.ts` / `session-store.ts`：导出版本升级至 `0.6`，记录新增 `layoutContext` 与 `layoutIntent`，兼容导入 V0.1 至 V0.6。
 2. `content/layout-inspector.ts`：读取选中元素直接父容器 selector、display、flex/grid 常见字段、gap 和子元素位置。
 3. `content/index.ts`：runtime 保存 `currentLayoutContext`，选择元素、滚动和 resize 时更新；新增 `saveLayoutIntent()` 保存布局记录。
-4. `panel/components/LayoutPanel.tsx`：展示布局事实，支持保存方向、对齐、目标间距和说明。
+4. `panel/components/LayoutPanel.tsx`：展示布局事实，支持保存方向、对齐、目标间距和说明；当前默认只在 flex / grid 且有可操作兄弟元素时展开完整布局参数，普通 block / inline 场景降级为轻提示。
 5. `prompt-template.ts`：新增“布局辅助”Prompt 子段落。
 6. 测试已覆盖布局读取、V0.6 JSON 导入导出与 Prompt 输出。
 7. Chrome 页面内烟测已覆盖：启用 content script、选中 `#save-button`、展示 LayoutPanel、读取父容器 flex/gap、保存横向居中 + `16px` gap 布局意图、导出 JSON `version: "0.6"`、复制包含“布局辅助”和“目标间距：16px”的 AI Prompt。

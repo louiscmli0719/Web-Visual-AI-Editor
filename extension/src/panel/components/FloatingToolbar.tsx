@@ -26,34 +26,36 @@ export function FloatingToolbar({
   onClose,
 }: FloatingToolbarProps) {
   return (
-    <nav className="wvaie-floating-toolbar" aria-label="网页检查工具">
-      <div className="wvaie-toolbar-group" role="group" aria-label="操作模式">
-        <ToolbarButton active={interactionMode === "browse"} icon={<HandIcon />} label="浏览" onClick={onBrowse} />
-        <ToolbarButton active={interactionMode === "select"} icon={<CursorIcon />} label="选择" onClick={onSelectElement} />
-        <ToolbarButton active={interactionMode === "measure"} icon={<MeasureIcon />} label="测量" onClick={onMeasure} />
-        <ToolbarButton active={interactionMode === "comment"} icon={<CommentIcon />} label="评论" onClick={onCommentMode} />
-        <ToolbarButton
-          active={interactionMode === "auto-layout"}
-          icon={<AutoLayoutIcon />}
-          label="自动布局"
-          onClick={onAutoLayout}
-        />
-      </div>
-      <div className="wvaie-toolbar-group" role="group" aria-label="结果操作">
-        <ToolbarButton
-          active={recordsActive}
-          badge={recordCount > 0 ? recordCount : undefined}
-          icon={<ListIcon />}
-          label="记录"
-          onClick={onShowRecords}
-          variant="record"
-        />
-        <span className="wvaie-toolbar-divider" />
-        <button className="wvaie-icon-button wvaie-toolbar-close" type="button" aria-label="退出编辑器" onClick={onClose}>
-          <CloseIcon />
-        </button>
-      </div>
-    </nav>
+    <div className="wvaie-floating-row">
+      <nav className="wvaie-floating-toolbar" aria-label="网页检查工具">
+        <div className="wvaie-toolbar-group" role="group" aria-label="操作模式">
+          <ToolbarButton active={interactionMode === "browse"} icon={<HandIcon />} label="浏览" onClick={onBrowse} />
+          <ToolbarButton active={interactionMode === "select"} icon={<CursorIcon />} label="选择" onClick={onSelectElement} />
+          <ToolbarButton active={interactionMode === "measure"} icon={<MeasureIcon />} label="测量" onClick={onMeasure} />
+          <ToolbarButton active={interactionMode === "comment"} icon={<CommentIcon />} label="评论" onClick={onCommentMode} />
+          <ToolbarButton
+            active={interactionMode === "auto-layout"}
+            icon={<AutoLayoutIcon />}
+            label="自动布局"
+            onClick={onAutoLayout}
+          />
+        </div>
+        <div className="wvaie-toolbar-group" role="group" aria-label="结果操作">
+          <ToolbarButton
+            active={recordsActive}
+            badge={recordCount > 0 ? recordCount : undefined}
+            icon={<ListIcon />}
+            label="记录"
+            onClick={onShowRecords}
+            variant="record"
+          />
+          <span className="wvaie-toolbar-divider" />
+          <button className="wvaie-icon-button wvaie-toolbar-close" type="button" aria-label="退出编辑器" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
+      </nav>
+    </div>
   );
 }
 

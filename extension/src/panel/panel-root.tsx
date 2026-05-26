@@ -138,15 +138,15 @@ function bindPanelDrag(mount: HTMLElement): PanelDragController {
       return;
     }
 
-    const header = target.closest(".wvaie-header");
-    const panel = header?.closest(".wvaie-panel");
-    if (!(header instanceof HTMLElement) || !(panel instanceof HTMLElement)) {
+    const handle = target.closest(".wvaie-panel-drag-handle, .wvaie-header");
+    const panel = handle?.closest(".wvaie-panel");
+    if (!(handle instanceof HTMLElement) || !(panel instanceof HTMLElement)) {
       return;
     }
 
     const rect = panel.getBoundingClientRect();
     dragState = {
-      handle: header,
+      handle,
       panel,
       pointerId: event.pointerId,
       offsetX: event.clientX - rect.left,
@@ -162,7 +162,7 @@ function bindPanelDrag(mount: HTMLElement): PanelDragController {
     panel.style.bottom = "auto";
     panel.classList.add("wvaie-panel-dragging");
 
-    header.setPointerCapture?.(event.pointerId);
+    handle.setPointerCapture?.(event.pointerId);
     window.addEventListener("pointermove", movePanel);
     window.addEventListener("pointerup", endDrag);
     window.addEventListener("pointercancel", endDrag);
@@ -220,23 +220,23 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       all: initial;
       color-scheme: dark;
       --bg: #121212;
-      --bg-panel: rgba(18, 18, 18, 0.97);
-      --bg-toolbar: rgba(20, 20, 20, 0.98);
-      --bg-raised: rgba(255, 255, 255, 0.055);
-      --bg-field: rgba(255, 255, 255, 0.085);
-      --bg-field-hover: rgba(255, 255, 255, 0.11);
-      --bg-hover: rgba(255, 255, 255, 0.075);
+      --bg-panel: linear-gradient(180deg, rgba(24, 24, 24, 0.94) 0%, rgba(15, 15, 15, 0.94) 100%);
+      --bg-toolbar: rgba(24, 24, 24, 0.9);
+      --bg-raised: rgba(80, 80, 80, 0.5);
+      --bg-field: rgba(80, 80, 80, 0.5);
+      --bg-field-hover: rgba(80, 80, 80, 0.64);
+      --bg-hover: rgba(80, 80, 80, 0.42);
       --border: rgba(255, 255, 255, 0.08);
       --border-strong: rgba(255, 255, 255, 0.18);
       --text: rgba(255, 255, 255, 0.95);
-      --text-muted: rgba(226, 232, 240, 0.82);
-      --text-dim: rgba(148, 163, 184, 0.78);
-      --accent: #5b6cff;
-      --accent-secondary: #9aa4ff;
-      --accent-hover: #6b7aff;
-      --accent-soft: rgba(91, 108, 255, 0.16);
-      --accent-fill: #5b6cff;
-      --accent-fill-hover: #6b7aff;
+      --text-muted: #e8e8e8;
+      --text-dim: rgba(232, 232, 232, 0.5);
+      --accent: #535dff;
+      --accent-secondary: #aeb5ff;
+      --accent-hover: #626bff;
+      --accent-soft: rgba(83, 93, 255, 0.16);
+      --accent-fill: #535dff;
+      --accent-fill-hover: #626bff;
       --success: #10b981;
       --warning: #f59e0b;
       --danger: #ef4444;
@@ -275,34 +275,123 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       outline-offset: 1px;
     }
 
-    .wvaie-floating-toolbar {
+    .wvaie-floating-row {
       position: fixed;
       top: max(14px, env(safe-area-inset-top));
       left: 50%;
       z-index: 2147483646;
       display: flex;
       align-items: center;
-      gap: 10px;
       transform: translateX(-50%);
-      padding: 6px;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .wvaie-floating-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px;
       border: 1.5px solid rgba(255, 255, 255, 0.1);
       border-radius: 100px;
+      background: rgba(24, 24, 24, 0.9);
+      color: #e8e8e8;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+    }
+
+    .wvaie-floating-switch,
+    .wvaie-floating-refresh {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
       background: rgba(40, 40, 40, 0.9);
       color: #e8e8e8;
       box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
-      backdrop-filter: blur(4px);
-      pointer-events: auto;
+      backdrop-filter: blur(8px);
+    }
+
+    .wvaie-floating-switch {
+      gap: 10px;
+      border-radius: 100px;
+      padding: 5px 5px 5px 13px;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 20px;
+      white-space: nowrap;
+    }
+
+    .wvaie-floating-switch-disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .wvaie-floating-switch input {
+      position: relative;
+      width: 56px;
+      height: 32px;
+      margin: 0;
+      border: 0;
+      border-radius: 999px;
+      appearance: none;
+      background: rgba(80, 80, 80, 0.6);
+      cursor: pointer;
+      transition: background 160ms ease-out;
+    }
+
+    .wvaie-floating-switch input::before {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: #fff;
+      content: "";
+      transition: transform 160ms ease-out;
+    }
+
+    .wvaie-floating-switch input:checked {
+      background: #535dff;
+    }
+
+    .wvaie-floating-switch input:checked::before {
+      transform: translateX(24px);
+    }
+
+    .wvaie-floating-refresh {
+      justify-content: center;
+      width: 44px;
+      border-radius: 999px;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .wvaie-floating-refresh:hover {
+      background: rgba(80, 80, 80, 0.72);
+    }
+
+    .wvaie-floating-refresh svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .wvaie-toolbar-group {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 7px;
     }
 
     .wvaie-toolbar-divider {
       width: 1px;
-      height: 31px;
+      height: 25px;
       background: rgba(255, 255, 255, 0.16);
     }
 
@@ -312,27 +401,27 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       align-items: center;
       justify-content: center;
       gap: 4px;
-      width: 38px;
-      height: 38px;
-      min-height: 38px;
+      width: 34px;
+      height: 34px;
+      min-height: 34px;
       border: 1px solid transparent;
-      border-radius: 0 19px 19px;
+      border-radius: 17px;
       background: transparent;
       color: #e8e8e8;
       cursor: pointer;
-      font-size: 14px;
-      padding: 9px;
+      font-size: 13px;
+      padding: 8px;
       transition: background 160ms ease-out, color 160ms ease-out, opacity 160ms ease-out;
     }
 
     .wvaie-icon-button {
-      min-width: 38px;
+      min-width: 34px;
     }
 
     .wvaie-toolbar-button svg,
     .wvaie-icon-button svg {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       fill: none;
       stroke: currentColor;
       stroke-width: 1.65;
@@ -347,7 +436,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
 
     .wvaie-toolbar-button:hover:not(:disabled),
     .wvaie-icon-button:hover {
-      border-radius: 19px;
+      border-radius: 17px;
       background: rgba(80, 80, 80, 0.38);
       color: #fff;
     }
@@ -366,15 +455,15 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
 
     .wvaie-toolbar-button-record {
       width: auto;
-      border-radius: 19px;
+      border-radius: 17px;
       background: rgba(80, 80, 80, 0.6);
-      padding: 9px;
+      padding: 8px;
     }
 
     .wvaie-toolbar-label {
       color: #e8e8e8;
       font-family: var(--sans);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 400;
       line-height: 18px;
       white-space: nowrap;
@@ -389,14 +478,14 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 19px;
-      min-height: 18px;
+      min-width: 18px;
+      min-height: 17px;
       border-radius: 20px;
       padding: 0 4px;
       background: #535dff;
       color: #e8e8e8;
-      font-size: 12px;
-      line-height: 16px;
+      font-size: 11px;
+      line-height: 15px;
       font-variant-numeric: tabular-nums;
     }
 
@@ -406,20 +495,207 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
 
     .wvaie-panel {
       position: fixed;
-      top: max(66px, calc(env(safe-area-inset-top) + 58px));
+      top: max(90px, calc(env(safe-area-inset-top) + 74px));
       right: max(14px, env(safe-area-inset-right));
       z-index: 2147483645;
       display: flex;
       flex-direction: column;
-      width: min(360px, calc(100vw - 28px));
-      max-height: calc(100dvh - max(82px, calc(env(safe-area-inset-top) + 74px)));
+      width: min(383px, calc(100vw - 28px));
+      max-height: calc(100dvh - max(106px, calc(env(safe-area-inset-top) + 98px)));
       overflow: hidden;
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 22px;
+      border-radius: 16px;
       background: var(--bg-panel);
+      background-color: rgba(24, 24, 24, 0.94);
       color: var(--text);
       box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
       pointer-events: auto;
+    }
+
+    .wvaie-panel-utility {
+      display: flex;
+      flex: none;
+      align-items: center;
+      gap: 8px;
+      min-height: 56px;
+      padding: 12px 16px 0;
+      color: #e8e8e8;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .wvaie-panel-utility-pill,
+    .wvaie-panel-shared-pill,
+    .wvaie-panel-refresh-circle {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      background: rgba(40, 40, 40, 0.9);
+      color: #e8e8e8;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(8px);
+    }
+
+    .wvaie-panel-dragging .wvaie-panel-utility,
+    .wvaie-panel-dragging .wvaie-header {
+      cursor: grabbing;
+    }
+
+    .wvaie-panel-utility-group {
+      display: flex;
+      flex: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .wvaie-panel-utility-pill {
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px;
+    }
+
+    .wvaie-panel-mode-button {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      min-width: 32px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: transparent;
+      color: #e8e8e8;
+      cursor: pointer;
+      padding: 7px;
+      transition: background 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out;
+    }
+
+    .wvaie-panel-mode-button:hover,
+    .wvaie-panel-mode-button-active {
+      background: rgba(80, 80, 80, 0.6);
+      color: #fff;
+    }
+
+    .wvaie-panel-mode-button svg,
+    .wvaie-panel-refresh-circle svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.65;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .wvaie-panel-mode-button svg .wvaie-panel-icon-fill {
+      fill: currentColor;
+      stroke: none;
+    }
+
+    .wvaie-panel-record-toggle {
+      gap: 5px;
+      min-width: 59px;
+      padding-right: 7px;
+    }
+
+    .wvaie-panel-record-label {
+      color: #e8e8e8;
+      font-size: 13px;
+      line-height: 18px;
+      white-space: nowrap;
+    }
+
+    .wvaie-panel-utility-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      min-height: 17px;
+      border-radius: 20px;
+      padding: 0 4px;
+      background: #535dff;
+      color: #e8e8e8;
+      font-size: 11px;
+      line-height: 15px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wvaie-panel-shared-pill {
+      display: inline-flex;
+      flex: 1 1 auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+      border-radius: 999px;
+      padding: 5px 5px 5px 13px;
+      color: #e8e8e8;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 18px;
+      white-space: nowrap;
+    }
+
+    .wvaie-panel-shared-pill-disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .wvaie-panel-shared-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .wvaie-panel-shared-pill input {
+      position: relative;
+      flex: none;
+      width: 54px;
+      height: 32px;
+      margin: 0;
+      border: 0;
+      border-radius: 999px;
+      appearance: none;
+      background: rgba(80, 80, 80, 0.6);
+      cursor: pointer;
+      transition: background 160ms ease-out;
+    }
+
+    .wvaie-panel-shared-pill input::before {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: #fff;
+      content: "";
+      transition: transform 160ms ease-out;
+    }
+
+    .wvaie-panel-shared-pill input:checked {
+      background: #535dff;
+    }
+
+    .wvaie-panel-shared-pill input:checked::before {
+      transform: translateX(22px);
+    }
+
+    .wvaie-panel-refresh-circle {
+      justify-content: center;
+      flex: none;
+      width: 42px;
+      padding: 0;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .wvaie-panel-refresh-circle:hover {
+      background: rgba(80, 80, 80, 0.72);
     }
 
     .wvaie-header {
@@ -514,10 +790,10 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     .wvaie-status-message {
       flex: none;
       margin: 0;
-      margin: 12px 22px 0;
-      padding: 10px 13px;
-      border-radius: 13px;
-      background: var(--bg-field);
+      margin: 16px 16px 0;
+      padding: 9px 12px;
+      border-radius: 10px;
+      background: rgba(80, 80, 80, 0.32);
       color: var(--text-muted);
       font-size: 12px;
       line-height: 17px;
@@ -528,14 +804,19 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       min-height: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
-      padding-bottom: 18px;
+      padding-bottom: 16px;
       scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+    }
+
+    .wvaie-scroll > .wvaie-inspector-section:first-child,
+    .wvaie-record-list-view {
+      margin-top: 24px;
     }
 
     .wvaie-inspector-section {
       display: grid;
       gap: 12px;
-      margin: 22px 22px 0;
+      margin: 24px 16px 0;
       padding: 0;
       border: 0;
       border-radius: 0;
@@ -664,7 +945,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       gap: 8px;
       margin: 0;
       padding: 12px;
-      border-radius: 14px;
+      border-radius: 8px;
       background: var(--bg-field);
     }
 
@@ -714,6 +995,315 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       line-height: 18px;
     }
 
+    .wvaie-layout-panel {
+      gap: 14px;
+    }
+
+    .wvaie-layout-panel-empty {
+      gap: 10px;
+    }
+
+    .wvaie-layout-direction-grid,
+    .wvaie-layout-mode-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .wvaie-layout-mode-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-height: 48px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: var(--bg-field);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 20px;
+      transition: background 160ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out;
+    }
+
+    .wvaie-layout-mode-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+      flex: none;
+    }
+
+    .wvaie-layout-mode-icon svg,
+    .wvaie-layout-spacing-icon svg,
+    .wvaie-style-icon svg,
+    .wvaie-style-font-trigger svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .wvaie-layout-mode-icon rect,
+    .wvaie-layout-spacing-icon rect {
+      fill: currentColor;
+      stroke: none;
+    }
+
+    .wvaie-layout-mode-button:hover {
+      border-color: var(--border-strong);
+      background: var(--bg-field-hover);
+    }
+
+    .wvaie-layout-mode-active {
+      border-color: rgba(83, 93, 255, 0.72);
+      background: rgba(83, 93, 255, 0.2);
+      box-shadow: inset 0 0 0 1px rgba(83, 93, 255, 0.2);
+    }
+
+    .wvaie-layout-overview-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .wvaie-layout-preview-card,
+    .wvaie-layout-gap-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 82px;
+      border-radius: 8px;
+      background: var(--bg-field);
+      padding: 12px;
+    }
+
+    .wvaie-layout-preview-card {
+      position: relative;
+      display: grid;
+      align-items: stretch;
+      overflow: hidden;
+    }
+
+    .wvaie-layout-preview-bars {
+      position: relative;
+      display: grid;
+      gap: 6px;
+      align-content: center;
+      justify-items: stretch;
+      min-height: 58px;
+      padding: 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .wvaie-layout-preview-bars::before {
+      position: absolute;
+      inset: 10px;
+      content: "";
+      background-image: radial-gradient(circle, rgba(232, 232, 232, 0.34) 1px, transparent 1.5px);
+      background-position: 0 0;
+      background-size: 72px 34px;
+      opacity: 0.72;
+    }
+
+    .wvaie-layout-preview-bars span {
+      position: relative;
+      display: block;
+      height: 8px;
+      border-radius: 6px;
+      background: rgba(83, 93, 255, 0.85);
+    }
+
+    .wvaie-layout-preview-bars-horizontal {
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      align-items: end;
+    }
+
+    .wvaie-layout-preview-bars-horizontal span {
+      width: 8px;
+      height: auto;
+      min-height: 30px;
+    }
+
+    .wvaie-layout-preview-meta {
+      display: none;
+    }
+
+    .wvaie-layout-preview-meta span,
+    .wvaie-layout-gap-caption,
+    .wvaie-layout-spacing-title {
+      color: var(--text-dim);
+      font-size: 12px;
+      line-height: 16px;
+    }
+
+    .wvaie-layout-preview-meta strong,
+    .wvaie-layout-gap-value {
+      overflow: hidden;
+      color: var(--text);
+      font: 600 13px/18px var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .wvaie-layout-gap-card .wvaie-style-input {
+      flex: 1 1 auto;
+      min-height: 40px;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font-size: 14px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wvaie-layout-gap-caption {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex: none;
+    }
+
+    .wvaie-layout-gap-caption svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .wvaie-layout-spacing-block {
+      display: grid;
+      gap: 8px;
+    }
+
+    .wvaie-layout-advanced {
+      display: grid;
+      gap: 10px;
+      padding-top: 2px;
+    }
+
+    .wvaie-layout-advanced summary {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 18px;
+      list-style: none;
+    }
+
+    .wvaie-layout-advanced summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .wvaie-layout-advanced summary::before {
+      display: inline-block;
+      width: 12px;
+      color: var(--text-dim);
+      content: "›";
+      transition: transform 160ms ease-out;
+    }
+
+    .wvaie-layout-advanced[open] summary::before {
+      transform: rotate(90deg);
+    }
+
+    .wvaie-layout-save-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 40px;
+      border-radius: 8px;
+      background: rgba(83, 93, 255, 0.14);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 18px;
+      padding: 8px 10px 8px 12px;
+    }
+
+    .wvaie-layout-save-strip .wvaie-button {
+      min-height: 30px;
+      padding: 0 11px;
+    }
+
+    .wvaie-layout-spacing-grid,
+    .wvaie-layout-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .wvaie-layout-spacing-cell,
+    .wvaie-layout-context-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 40px;
+      border-radius: 8px;
+      background: var(--bg-field);
+      padding: 10px 12px;
+    }
+
+    .wvaie-layout-spacing-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
+    .wvaie-layout-spacing-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 0;
+      background: transparent;
+      color: var(--text-muted);
+      font: 600 11px/1 var(--mono);
+    }
+
+    .wvaie-layout-spacing-label {
+      display: none;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 18px;
+    }
+
+    .wvaie-layout-spacing-cell .wvaie-style-length {
+      min-height: 40px;
+      flex: 1 1 auto;
+      background: transparent;
+    }
+
+    .wvaie-layout-context-cell strong {
+      overflow: hidden;
+      color: var(--text);
+      font: 600 13px/18px var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .wvaie-layout-context-cell span {
+      color: var(--text-dim);
+      font-size: 12px;
+      line-height: 16px;
+      white-space: nowrap;
+    }
+
     .wvaie-element-summary {
       gap: 14px;
     }
@@ -748,14 +1338,6 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       white-space: nowrap;
     }
 
-    .wvaie-property-section {
-      display: grid;
-      gap: 12px;
-      margin-top: 2px;
-      padding: 18px 0 0;
-      border-top: 1px solid var(--border);
-    }
-
     .wvaie-property-section h2,
     .wvaie-import-export h2,
     .wvaie-record-heading h2 {
@@ -766,50 +1348,6 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       line-height: 20px;
     }
 
-    .wvaie-value-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 9px;
-    }
-
-    .wvaie-four-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    .wvaie-value-cell {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 40px;
-      padding: 0 14px;
-      border-radius: 12px;
-      background: var(--bg-field);
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-
-    .wvaie-four-grid .wvaie-value-cell {
-      display: grid;
-      justify-content: center;
-      gap: 1px;
-      min-height: 42px;
-      padding: 4px;
-      text-align: center;
-    }
-
-    .wvaie-value-cell strong {
-      color: var(--text);
-      font: 600 15px/18px var(--mono);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .wvaie-property-details {
-      padding: 0;
-      color: var(--text-muted);
-      font-size: 12px;
-    }
-
-    .wvaie-property-details summary,
     .wvaie-control-group summary,
     .wvaie-similar-panel summary {
       cursor: pointer;
@@ -820,7 +1358,6 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       line-height: 42px;
     }
 
-    .wvaie-property-details summary::before,
     .wvaie-control-group summary::before,
     .wvaie-similar-panel summary::before {
       display: inline-block;
@@ -833,17 +1370,6 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       transform: rotate(90deg);
     }
 
-    .wvaie-element-text,
-    .wvaie-element-selector {
-      margin: 4px 0 0 15px;
-      padding: 9px 12px;
-      border-radius: 12px;
-      background: var(--bg-field);
-      color: var(--text-muted);
-      font: 12px/17px var(--mono);
-      overflow-wrap: anywhere;
-    }
-
     .wvaie-style-editor,
     .wvaie-measurement-panel {
       gap: 12px;
@@ -853,6 +1379,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       padding: 0;
       color: var(--text-muted);
       font-size: 12px;
+      min-width: 0;
     }
 
     .wvaie-similar-panel summary {
@@ -878,6 +1405,8 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     .wvaie-similar-content {
       display: grid;
       gap: 10px;
+      min-width: 0;
+      max-width: 100%;
       padding: 0 0 2px 15px;
     }
 
@@ -885,16 +1414,26 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     .wvaie-similar-help {
       margin: 0;
       line-height: 18px;
+      min-width: 0;
     }
 
     .wvaie-similar-feature code {
-      margin-left: 5px;
+      display: block;
+      max-width: 100%;
+      margin-top: 6px;
+      overflow: hidden;
+      border-radius: 8px;
+      padding: 7px 9px;
+      background: var(--bg-field);
       color: var(--text);
       font: 11px/17px var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .wvaie-similar-truncated {
-      margin-left: 6px;
+      display: inline-block;
+      margin-top: 6px;
       color: #bfdbfe;
     }
 
@@ -964,16 +1503,25 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     .wvaie-similar-list {
       display: grid;
       gap: 4px;
+      min-width: 0;
+      max-width: 100%;
       margin: 0;
       padding: 0;
       list-style: none;
     }
 
+    .wvaie-similar-list li {
+      min-width: 0;
+      max-width: 100%;
+    }
+
     .wvaie-similar-target {
+      display: block;
       width: 100%;
+      max-width: 100%;
       overflow: hidden;
       border: 1px solid transparent;
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 9px 12px;
       background: var(--bg-field);
       color: var(--text-muted);
@@ -990,31 +1538,192 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       color: var(--text);
     }
 
-    .wvaie-control-group {
-      border-bottom: 1px solid var(--border);
-      padding: 0;
+    .wvaie-style-section {
+      display: grid;
+      gap: 12px;
     }
 
-    .wvaie-style-grid {
+    .wvaie-style-section-grid {
       display: grid;
-      gap: 8px;
-      padding: 0 0 14px 15px;
-    }
-
-    .wvaie-style-row {
-      display: grid;
-      grid-template-columns: 104px minmax(0, 1fr);
-      align-items: center;
       gap: 10px;
     }
 
-    .wvaie-style-row label {
-      color: var(--text-muted);
-      font-size: 13px;
+    .wvaie-style-dual-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
     }
 
-    .wvaie-style-row label.wvaie-style-changed {
-      color: var(--accent);
+    .wvaie-style-dual-cell {
+      display: grid;
+      min-height: 40px;
+      border-radius: 8px;
+      background: var(--bg-field);
+      padding: 10px 12px;
+    }
+
+    .wvaie-style-row-title {
+      color: var(--text-dim);
+      font-size: 12px;
+      line-height: 16px;
+    }
+
+    .wvaie-style-compact-shell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .wvaie-style-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 0;
+      background: transparent;
+      color: var(--text-muted);
+      font: 600 11px/1 var(--mono);
+      flex: none;
+    }
+
+    .wvaie-style-inline-input,
+    .wvaie-style-inline-select,
+    .wvaie-style-inline-unit,
+    .wvaie-style-inline-value {
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 20px;
+      padding: 0;
+    }
+
+    .wvaie-style-inline-select,
+    .wvaie-style-inline-unit {
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .wvaie-style-inline-input:focus,
+    .wvaie-style-inline-select:focus,
+    .wvaie-style-inline-unit:focus {
+      outline: none;
+    }
+
+    .wvaie-style-inline-length {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .wvaie-style-inline-input {
+      flex: 1 1 auto;
+      width: 100%;
+    }
+
+    .wvaie-style-inline-unit,
+    .wvaie-style-alpha-pill,
+    .wvaie-style-font-trigger {
+      flex: none;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .wvaie-style-font-compact {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .wvaie-style-font-compact .wvaie-style-inline-select {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .wvaie-style-font-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .wvaie-style-color-row,
+    .wvaie-style-corner-row,
+    .wvaie-style-single-row,
+    .wvaie-style-shadow-row {
+      display: grid;
+      gap: 8px;
+    }
+
+    .wvaie-style-color-strip {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 16px;
+      min-height: 40px;
+      border-radius: 8px;
+      background: var(--bg-field);
+      padding: 10px 12px;
+    }
+
+    .wvaie-style-color-swatch {
+      width: 20px;
+      height: 20px;
+      border: 0;
+      border-radius: 4px;
+      padding: 0;
+      background: transparent;
+    }
+
+    .wvaie-style-color-value {
+      min-height: auto;
+      border: 0;
+      background: transparent;
+      padding: 0;
+    }
+
+    .wvaie-style-shadow-textarea {
+      min-height: 80px;
+      resize: none;
+    }
+
+    .wvaie-style-inline-value {
+      font: 600 14px/20px var(--mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wvaie-advanced-info-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .wvaie-advanced-info-cell {
+      display: grid;
+      gap: 8px;
+    }
+
+    .wvaie-advanced-info-text {
+      margin: 0;
+      min-height: 64px;
+      border-radius: 8px;
+      background: var(--bg-field);
+      color: var(--text-muted);
+      font: 12px/18px var(--mono);
+      padding: 12px;
+      overflow-wrap: anywhere;
     }
 
     .wvaie-style-input,
@@ -1026,7 +1735,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       width: 100%;
       min-height: 40px;
       border: 1px solid transparent;
-      border-radius: 12px;
+      border-radius: 8px;
       background: var(--bg-field);
       color: var(--text);
       font-size: 13px;
@@ -1039,7 +1748,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       min-height: 40px;
       overflow: hidden;
       border: 1px solid transparent;
-      border-radius: 14px;
+      border-radius: 8px;
       background: var(--bg-field);
       transition: background 160ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out;
     }
@@ -1132,7 +1841,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       height: 40px;
       padding: 5px;
       border: 1px solid var(--border-strong);
-      border-radius: 12px;
+      border-radius: 8px;
       background: var(--bg-field);
     }
 
@@ -1165,7 +1874,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       justify-content: space-between;
       gap: 10px;
       padding: 10px 13px;
-      border-radius: 12px;
+      border-radius: 8px;
       background: var(--accent-soft);
       color: var(--text);
       font-size: 12px;
@@ -1222,102 +1931,56 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       position: fixed;
       z-index: 2147483646;
       display: grid;
-      width: 304px;
-      gap: 10px;
-      padding: 14px;
-      border: 1px solid rgba(244, 114, 182, 0.42);
+      width: 302px;
+      gap: 24px;
+      padding: 16px;
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
-      background: rgba(18, 18, 18, 0.98);
+      background: rgba(24, 24, 24, 0.9);
       color: var(--text);
-      box-shadow:
-        0 24px 68px rgba(0, 0, 0, 0.42),
-        0 0 0 1px rgba(217, 70, 239, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
       pointer-events: auto;
     }
 
-    .wvaie-quick-comment::before {
-      position: absolute;
-      top: 28px;
-      left: -9px;
-      width: 16px;
-      height: 16px;
-      border-bottom: 1px solid rgba(244, 114, 182, 0.42);
-      border-left: 1px solid rgba(244, 114, 182, 0.42);
-      background: rgba(18, 18, 18, 0.98);
-      content: "";
-      transform: rotate(45deg);
-    }
-
-    .wvaie-quick-comment-pin {
-      position: absolute;
-      top: -15px;
-      left: -15px;
-      display: grid;
-      width: 34px;
-      height: 34px;
-      place-items: center;
-      border: 2px solid rgba(255, 255, 255, 0.92);
-      border-radius: 50%;
-      background: #ec35c8;
-      color: #fff;
-      font: 800 15px/1 var(--sans);
-      box-shadow:
-        0 0 0 2px rgba(217, 70, 239, 0.38),
-        0 0 24px rgba(236, 53, 200, 0.52);
-    }
-
-    .wvaie-quick-comment-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .wvaie-quick-comment-head h2,
-    .wvaie-quick-comment-kicker,
-    .wvaie-quick-comment-selector {
+    .wvaie-quick-comment-title,
+    .wvaie-quick-comment-current {
       margin: 0;
     }
 
-    .wvaie-quick-comment-kicker {
-      color: #f9a8e7;
-      font-size: 11px;
-      font-weight: 700;
-      line-height: 16px;
-    }
-
-    .wvaie-quick-comment-head h2 {
+    .wvaie-quick-comment-title {
       color: var(--text);
-      font-size: 15px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 600;
       line-height: 20px;
-      text-transform: uppercase;
     }
 
-    .wvaie-quick-comment .wvaie-icon-button {
-      min-width: 30px;
-      min-height: 30px;
-      font-size: 20px;
-      line-height: 1;
-    }
-
-    .wvaie-quick-comment-selector {
+    .wvaie-quick-comment-current {
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 20px;
       overflow: hidden;
-      color: var(--text-dim);
-      font: 11px/16px var(--mono);
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .wvaie-quick-comment-textarea {
-      min-height: 82px;
+      min-height: 220px;
+      margin-top: -16px;
     }
 
     .wvaie-quick-comment-meta {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
-      gap: 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: -8px;
+    }
+
+    .wvaie-quick-comment-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: -8px;
     }
 
     .wvaie-comment-editor {
@@ -1332,6 +1995,25 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       padding: 0;
     }
 
+    .wvaie-page-comment-trigger {
+      min-height: 88px;
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      background: var(--bg-field);
+      color: var(--text-dim);
+      cursor: text;
+      font-size: 13px;
+      line-height: 20px;
+      padding: 12px;
+      text-align: left;
+    }
+
+    .wvaie-page-comment-trigger:hover {
+      background: var(--bg-field-hover);
+      color: var(--text-muted);
+    }
+
     .wvaie-page-comment-header {
       display: flex;
       align-items: center;
@@ -1341,15 +2023,16 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     .wvaie-page-comment-header h2 {
       margin: 0;
       color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 22px;
     }
 
     .wvaie-help-text {
       margin: 0;
       color: var(--text-muted);
-      font-size: 11px;
-      line-height: 17px;
+      font-size: 13px;
+      line-height: 22px;
     }
 
     .wvaie-page-comment-body,
@@ -1362,21 +2045,16 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       padding-top: 4px;
     }
 
-    .wvaie-comment-label {
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
-    }
-
     .wvaie-textarea {
-      min-height: 76px;
+      min-height: 88px;
       resize: vertical;
-      line-height: 19px;
+      line-height: 20px;
     }
 
-    .wvaie-metadata-controls {
+    .wvaie-comment-shell,
+    .wvaie-comment-meta-panel {
       display: grid;
-      gap: 9px;
+      gap: 12px;
     }
 
     .wvaie-form-row {
@@ -1392,7 +2070,8 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
 
     .wvaie-form-field label {
       color: var(--text-muted);
-      font-size: 11px;
+      font-size: 14px;
+      line-height: 20px;
     }
 
     .wvaie-attach-measurement {
@@ -1418,9 +2097,29 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       gap: 7px;
     }
 
+    .wvaie-comment-textarea {
+      min-height: 88px;
+    }
+
+    .wvaie-comment-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 33px;
+    }
+
+    .wvaie-comment-options {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
     .wvaie-edit-mode-banner {
       padding: 10px 12px;
-      border-radius: 12px;
+      border-radius: 8px;
       background: var(--accent-soft);
       color: var(--text);
       font-size: 12px;
@@ -1429,8 +2128,14 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     .wvaie-actions,
     .wvaie-footer {
       display: flex;
+      flex: none;
       justify-content: flex-end;
       gap: 8px;
+    }
+
+    .wvaie-layout-footer {
+      display: flex;
+      justify-content: flex-end;
     }
 
     .wvaie-button {
@@ -1439,13 +2144,14 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       justify-content: center;
       min-height: 40px;
       border: 1px solid transparent;
-      border-radius: 12px;
+      border-radius: 8px;
       background: var(--bg-field);
       color: var(--text);
       cursor: pointer;
       font-size: 13px;
       font-weight: 600;
       padding: 0 14px;
+      white-space: nowrap;
       transition: background 160ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out;
     }
 
@@ -1489,7 +2195,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
     .wvaie-record-list-view {
       display: grid;
       gap: 12px;
-      padding: 18px 22px 12px;
+      padding: 0 16px 12px;
     }
 
     .wvaie-record-heading,
@@ -1534,7 +2240,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       display: grid;
       gap: 9px;
       padding: 12px;
-      border-radius: 14px;
+      border-radius: 8px;
       background: var(--bg-raised);
     }
 
@@ -1591,10 +2297,12 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       display: flex;
       gap: 5px;
       margin-top: 2px;
+      flex-wrap: wrap;
     }
 
     .wvaie-record-status-select {
       flex: 1;
+      min-width: 106px;
     }
 
     .wvaie-import-export {
@@ -1631,7 +2339,7 @@ export function createPanelRoot(handlers: PanelHandlers): PanelController {
       width: 100%;
       padding: 16px;
       border: 1px solid var(--border-strong);
-      border-radius: 12px;
+      border-radius: 8px;
       background: rgba(24, 24, 24, 0.98);
       box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }

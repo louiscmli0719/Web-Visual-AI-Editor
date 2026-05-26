@@ -34,6 +34,7 @@ import { readElementSnapshot } from "./dom-inspector";
 import { readStyleSnapshot, STYLE_PROPERTY_DEFINITIONS } from "./style-inspector";
 import { createStylePreviewManager, type StylePreviewManager } from "./style-preview";
 import { buildElementSelector } from "./selector";
+import { buildCommentPinsFromRecords } from "./comment-pins";
 import {
   readSize,
   readViewportDistances,
@@ -1834,35 +1835,7 @@ function buildOverlayMeasurement(runtime: EditorRuntime): MeasurementOverlay | n
 }
 
 function buildCommentPins(runtime: EditorRuntime): CommentPinOverlay[] {
-  const grouped = new Map<string, { count: number; element: Element }>();
-
-  for (const record of runtime.session.records) {
-    if (!record.element || !record.comment.trim()) {
-      continue;
-    }
-
-    const existing = grouped.get(record.element.selector);
-    if (existing) {
-      existing.count += 1;
-      continue;
-    }
-
-    const element = document.querySelector(record.element.selector);
-    if (!element) {
-      continue;
-    }
-
-    grouped.set(record.element.selector, {
-      count: 1,
-      element
-    });
-  }
-
-  return Array.from(grouped.entries()).map(([selector, item]) => ({
-    id: selector,
-    count: item.count,
-    rect: rectFromElement(item.element)
-  }));
+  return buildCommentPinsFromRecords(runtime.session.records);
 }
 
 function rectFromElement(element: Element) {

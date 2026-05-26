@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "package": "npm run build && node scripts/package-extension.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "verify": "npm run test && npm run typecheck && npm run build"
